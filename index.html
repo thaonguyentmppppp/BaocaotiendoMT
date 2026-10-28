@@ -1,0 +1,1980 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VENTECH - Báo Cáo Tiến Độ Thi Công Hiện Trường CP</title>
+
+  <!-- PWA & MOBILE APP META TAGS (ANDROID & IOS) -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Ventech CP">
+  <meta name="theme-color" content="#0284c7">
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Firebase SDK (v9 Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #printable-report, #printable-report * { visibility: visible; }
+      #printable-report { position: absolute; left: 0; top: 0; width: 100%; display: block !important; margin: 0; padding: 20px; }
+      .no-print { display: none !important; }
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans pb-16">
+
+  <!-- FIREBASE CONFIG & TỰ SINH ICON/LOGO/PWA MANIFEST CHUẨN ĐIỆN THOẠI -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB3hvtNC84KNTUWNP5YON4jvQqRWJwqXBU",
+      authDomain: "ventech-cp-report.firebaseapp.com",
+      projectId: "ventech-cp-report",
+      storageBucket: "ventech-cp-report.firebasestorage.app",
+      messagingSenderId: "1011272600888",
+      appId: "1:1011272600888:web:05635e93cf592eed5405cd",
+      measurementId: "G-6TF4DV4FJ4"
+    };
+    
+    let db = null;
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      console.log("Firebase kết nối thành công!");
+    } catch(e) {
+      console.warn("Chạy offline / LocalStorage mode do lỗi Firebase:", e);
+    }
+
+    let VENTECH_LOGO_BASE64 = "";
+    let VENTECH_ICON_BASE64 = "";
+
+    function generateVentechAssets() {
+      // 1. Sinh Logo ngang
+      const canvas = document.createElement("canvas");
+      canvas.width = 400; canvas.height = 100;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, 400, 100);
+
+      const cx = 50, cy = 50, r = 36;
+      ctx.fillStyle = "#0284c7";
+      for (let i = -3; i <= 3; i++) {
+        for (let j = -3; j <= 3; j++) {
+          const x = cx + i * 10;
+          const y = cy + j * 10;
+          if (Math.hypot(x - cx, y - cy) <= r) {
+            ctx.beginPath();
+            ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      ctx.font = "bold 44px Arial, sans-serif";
+      ctx.fillStyle = "#0284c7";
+      ctx.fillText("Ventech", 105, 56);
+      ctx.font = "bold 14px Arial, sans-serif";
+      ctx.fillText("®", 280, 28);
+
+      ctx.fillStyle = "#dc2626";
+      ctx.fillRect(105, 64, 270, 3.5);
+
+      ctx.font = "normal 16px Arial, sans-serif";
+      ctx.fillStyle = "#475569";
+      ctx.fillText("venus networks technology", 108, 86);
+
+      VENTECH_LOGO_BASE64 = canvas.toDataURL("image/png");
+
+      // 2. Sinh App Icon hình vuông (Dành cho iOS & Android Icon)
+      const iconCanvas = document.createElement("canvas");
+      iconCanvas.width = 192; iconCanvas.height = 192;
+      const ictx = iconCanvas.getContext("2d");
+      ictx.fillStyle = "#0284c7";
+      ictx.fillRect(0, 0, 192, 192);
+
+      // Chữ Ventech V viết tắt phong cách hiện trường
+      ictx.fillStyle = "#ffffff";
+      ictx.font = "bold 96px Arial, sans-serif";
+      ictx.textAlign = "center";
+      ictx.textBaseline = "middle";
+      ictx.fillText("V", 96, 90);
+
+      ictx.fillStyle = "#dc2626";
+      ictx.fillRect(36, 145, 120, 8);
+
+      VENTECH_ICON_BASE64 = iconCanvas.toDataURL("image/png");
+
+      // Gắn Apple Touch Icon cho Safari iPhone
+      const appleIconLink = document.createElement("link");
+      appleIconLink.rel = "apple-touch-icon";
+      appleIconLink.href = VENTECH_ICON_BASE64;
+      document.head.appendChild(appleIconLink);
+
+      // Tạo PWA Web App Manifest trực tiếp qua Blob
+      const manifestObj = {
+        name: "VENTECH - Báo Cáo Tiến Độ CP",
+        short_name: "Ventech CP",
+        start_url: window.location.href,
+        display: "standalone",
+        background_color: "#0284c7",
+        theme_color: "#0284c7",
+        icons: [{
+          src: VENTECH_ICON_BASE64,
+          sizes: "192x192",
+          type: "image/png"
+        }]
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: "application/json" });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      const manifestLink = document.createElement("link");
+      manifestLink.rel = "manifest";
+      manifestLink.href = manifestUrl;
+      document.head.appendChild(manifestLink);
+    }
+    generateVentechAssets();
+  </script>
+
+  <!-- THANH TOPBAR -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <img id="top-logo-img" class="h-9 w-auto object-contain" alt="Ventech Logo">
+        <div>
+          <h1 class="font-bold text-slate-800 text-sm md:text-base leading-tight">VENTECH - TIẾN ĐỘ THI CÔNG CÁC TRẠI MIỀN TRUNG</h1>
+          <p class="text-xs text-sky-600 font-medium">Dự án: CP | Kéo cáp quang & Giám sát Camera</p>
+        </div>
+      </div>
+      <div id="auth-info" class="flex items-center space-x-3 text-xs md:text-sm"></div>
+    </div>
+  </header>
+
+  <!-- BANNER CÀI ĐẶT APP CHO ĐIỆN THOẠI (ANDROID / IOS) -->
+  <div id="pwa-install-banner" class="bg-gradient-to-r from-sky-600 to-indigo-700 text-white px-4 py-2 text-xs flex items-center justify-between shadow-sm no-print">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-mobile-screen-button text-base"></i>
+      <span>Cài đặt ứng dụng lên <strong>Màn hình chính điện thoại (Android / iOS)</strong> để dùng nhanh hằng ngày!</span>
+    </div>
+    <button onclick="showInstallInstructions()" class="bg-white text-sky-800 font-bold px-3 py-1 rounded shadow-sm hover:bg-sky-50 transition text-[11px]">
+      <i class="fa-solid fa-download mr-1"></i>Xem Hướng Dẫn Thêm
+    </button>
+  </div>
+
+  <!-- KHUNG ỨNG DỤNG CHÍNH -->
+  <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full" id="main-container"></main>
+
+  <!-- KHU VỰC IN BÁO CÁO A4 -->
+  <div id="printable-report" class="hidden font-serif"></div>
+
+  <!-- MODAL CONTAINER (DÙNG CHO TÀI KHOẢN, SỬA PROFILE, TẠO/SỬA SITE, GIAI ĐOẠN, HƯỚNG DẪN CÀI APP) -->
+  <div id="modal-container" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4"></div>
+
+  <!-- SCRIPT LOGIC TOÀN BỘ HỆ THỐNG -->
+  <script>
+    const DEFAULT_SITES = [
+      { id: "baogiang", code: "19", name: "TRẠI BẢO GIANG", tech: "Nguyễn Văn Tuấn", phone: "0912.345.678" },
+      { id: "minhthien3", code: "20", name: "TRẠI MINH THIỆN 3", tech: "Trần Đình Khang", phone: "0908.123.456" },
+      { id: "iapa", code: "21", name: "TRẠI IAPA", tech: "Lê Hoàng Phúc", phone: "0934.567.890" },
+      { id: "doixanh", code: "22", name: "TRẠI ĐỒI XANH", tech: "Phạm Quốc Huy", phone: "0945.678.901" },
+      { id: "nhattran", code: "23", name: "TRẠI NHẤT TRẦN", tech: "Võ Văn Kiệt", phone: "0987.654.321" },
+      { id: "navifarm", code: "24", name: "TRẠI NAVIFARM", tech: "Đặng Minh Tâm", phone: "0978.112.233" }
+    ];
+
+    const DEFAULT_STAGE1 = [
+      { code: "I.1", name: "Khảo sát vị trí lắp Camera", default: 100 },
+      { code: "I.2", name: "Nhân công và hàng hóa tập kết tại trại (cách ly 24h - 48h)", default: 100 },
+      { code: "I.3", name: "Dựng trụ lắp camera GĐ 1 cho các vị trí chính (theo tiêu chuẩn C.P)", default: 100 },
+      { code: "I.4", name: "Kéo cáp Cat6, cáp điện chính thức; kéo cáp quang tạm", default: 100 },
+      { code: "I.5", name: "Lắp tủ Rack, Tủ EB", default: 100 },
+      { code: "I.6", name: "Hàn quang, đấu nối tạm", default: 100 },
+      { code: "I.7", name: "Lắp camera theo tiêu chuẩn của C.P", default: 100 },
+      { code: "I.8", name: "Lên hình Camera", default: 100 }
+    ];
+
+    const DEFAULT_STAGE2 = [
+      { code: "II.1", name: "Nhân công và hàng hóa tập kết tại trại (cách ly 24h - 48h)", default: 100 },
+      { code: "II.2", name: "Kiểm tra toàn bộ, hoàn thiện lại hệ thống cáp quang theo tiêu chuẩn C.P", default: 40 },
+      { code: "II.3", name: "Cấu hình hệ thống, camera hoàn chỉnh theo yêu cầu của C.P", default: 0 },
+      { code: "II.4", name: "Nghiệm thu nội bộ từng trại", default: 0 },
+      { code: "II.5", name: "Nghiệm thu với Chủ đầu tư", default: 0 }
+    ];
+
+    const DEFAULT_USERS = [
+      { u: "admin", p: "admin123", role: "superadmin", name: "Super Admin (Tổng Chỉ Huy)", allowedSites: ["*"] },
+      { u: "adminsite1", p: "123456", role: "adminsite", name: "Admin Cụm 1", allowedSites: ["baogiang", "minhthien3", "iapa"] },
+      { u: "adminsite2", p: "123456", role: "adminsite", name: "Admin Cụm 2", allowedSites: ["doixanh", "nhattran", "navifarm"] },
+      { u: "baogiang", p: "123456", role: "site", siteId: "baogiang", name: "Site Bảo Giang" },
+      { u: "minhthien3", p: "123456", role: "site", siteId: "minhthien3", name: "Site Minh Thiện 3" },
+      { u: "iapa", p: "123456", role: "site", siteId: "iapa", name: "Site IaPa" },
+      { u: "doixanh", p: "123456", role: "site", siteId: "doixanh", name: "Site Đồi Xanh" },
+      { u: "nhattran", p: "123456", role: "site", siteId: "nhattran", name: "Site Nhất Trần" },
+      { u: "navifarm", p: "123456", role: "site", siteId: "navifarm", name: "Site NaviFarm" }
+    ];
+
+    let currentUser = JSON.parse(localStorage.getItem("ventech_user")) || null;
+    let selectedDate = new Date().toISOString().split("T")[0];
+    let inspectingSiteId = null;
+
+    let siteSearchKeyword = "";
+    let siteFilterStatus = "all"; // all, submitted, pending
+
+    let appData = JSON.parse(localStorage.getItem("ventech_db")) || {
+      sites: DEFAULT_SITES,
+      stage1Template: DEFAULT_STAGE1,
+      stage2Template: DEFAULT_STAGE2,
+      users: DEFAULT_USERS,
+      reports: {}
+    };
+
+    if (!appData.sites) appData.sites = DEFAULT_SITES;
+    if (!appData.stage1Template) appData.stage1Template = DEFAULT_STAGE1;
+    if (!appData.stage2Template) appData.stage2Template = DEFAULT_STAGE2;
+    if (!appData.users) appData.users = DEFAULT_USERS;
+
+    function calculateSiteAvgStage1(rep) {
+      if (!rep || !rep.stage1) return 100;
+      const vals = Object.values(rep.stage1).map(Number);
+      if (!vals.length) return 100;
+      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+
+    function calculateSiteAvgStage2(rep) {
+      if (!rep || !rep.stage2) return 0;
+      const vals = Object.values(rep.stage2).map(Number);
+      if (!vals.length) return 0;
+      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+
+    function ensureDayReport(dateKey) {
+      if (!appData.reports[dateKey]) appData.reports[dateKey] = {};
+      appData.sites.forEach(site => {
+        if (!appData.reports[dateKey][site.id]) {
+          const prevDates = Object.keys(appData.reports).filter(d => d < dateKey).sort();
+          let prevProgress1 = {}, prevProgress2 = {}, prevStagesEnabled = { stage1: true, stage2: true };
+          if (prevDates.length > 0) {
+            const lastD = prevDates[prevDates.length - 1];
+            if (appData.reports[lastD][site.id]) {
+              prevProgress1 = { ...appData.reports[lastD][site.id].stage1 };
+              prevProgress2 = { ...appData.reports[lastD][site.id].stage2 };
+              if (appData.reports[lastD][site.id].stagesEnabled) {
+                prevStagesEnabled = { ...appData.reports[lastD][site.id].stagesEnabled };
+              }
+            }
+          }
+          appData.reports[dateKey][site.id] = {
+            submitted: false,
+            submitTime: "",
+            stagesEnabled: prevStagesEnabled,
+            stage1: Object.keys(prevProgress1).length ? prevProgress1 : appData.stage1Template.reduce((acc, cur) => ({ ...acc, [cur.code]: cur.default }), {}),
+            stage2: Object.keys(prevProgress2).length ? prevProgress2 : appData.stage2Template.reduce((acc, cur) => ({ ...acc, [cur.code]: cur.default }), {}),
+            images: [],
+            issues: "Quy trình cách ly nghiêm ngặt; Thời gian di chuyển giữa các trại xa; Thời tiết mưa chiều ảnh hưởng kéo cáp.",
+            planNext: "Tiếp tục hoàn thiện các vị trí camera, kéo cáp quang và đấu nối tủ EB."
+          };
+        } else {
+          if (!appData.reports[dateKey][site.id].stagesEnabled) {
+            appData.reports[dateKey][site.id].stagesEnabled = { stage1: true, stage2: true };
+          }
+        }
+      });
+    }
+    ensureDayReport(selectedDate);
+
+    function saveAllData(silent = true) {
+      localStorage.setItem("ventech_db", JSON.stringify(appData));
+      if (db) {
+        db.collection("daily_reports").doc("system_config").set({
+          sites: appData.sites,
+          stage1Template: appData.stage1Template,
+          stage2Template: appData.stage2Template,
+          users: appData.users,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        db.collection("daily_reports").doc(selectedDate).set({
+          date: selectedDate,
+          reports: appData.reports[selectedDate],
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true })
+        .then(() => {
+          if (!silent) showToast("Đã lưu và đồng bộ dữ liệu lên Firebase thành công!");
+        })
+        .catch(err => console.warn("Lưu Firestore bị lỗi:", err));
+      } else {
+        if (!silent) showToast("Đã lưu vào bộ nhớ cục bộ (Offline)!");
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.createElement("div");
+      toast.className = "fixed bottom-5 right-5 z-50 bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-xl flex items-center space-x-2 animate-bounce";
+      toast.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>${msg}</span>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2500);
+    }
+
+    if (db) {
+      db.collection("daily_reports").doc("system_config").onSnapshot(doc => {
+        if (doc.exists) {
+          const cfg = doc.data();
+          if (cfg.sites) appData.sites = cfg.sites;
+          if (cfg.stage1Template) appData.stage1Template = cfg.stage1Template;
+          if (cfg.stage2Template) appData.stage2Template = cfg.stage2Template;
+          if (cfg.users) {
+            appData.users = cfg.users;
+            if (currentUser) {
+              const me = appData.users.find(x => x.u === currentUser.u);
+              if (me) {
+                currentUser = { ...me };
+                localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+                renderAuthInfo();
+              }
+            }
+          }
+          localStorage.setItem("ventech_db", JSON.stringify(appData));
+          renderMain();
+        }
+      });
+
+      db.collection("daily_reports").doc(selectedDate).onSnapshot(doc => {
+        if (doc.exists) {
+          const data = doc.data();
+          if (data && data.reports) {
+            appData.reports[selectedDate] = data.reports;
+            localStorage.setItem("ventech_db", JSON.stringify(appData));
+            renderMain();
+          }
+        }
+      }, err => console.warn("Firebase listener:", err.message));
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("top-logo-img").src = VENTECH_LOGO_BASE64;
+      renderAuthInfo();
+      renderMain();
+    });
+
+    // CHỈ CHO PHÉP SUPER ADMIN MỞ MODAL SỬA TÀI KHOẢN
+    function renderAuthInfo() {
+      const box = document.getElementById("auth-info");
+      if (!currentUser) {
+        box.innerHTML = `<span class="text-slate-500"><i class="fa-solid fa-lock mr-1"></i>Hệ thống bảo mật</span>`;
+      } else {
+        const isSuperAdmin = currentUser.role === "superadmin";
+
+        let badgeColor = "bg-rose-100 text-rose-800 hover:bg-rose-200 cursor-pointer";
+        let roleName = "Super Admin";
+        if (currentUser.role === "adminsite") {
+          badgeColor = "bg-purple-100 text-purple-800 cursor-default";
+          roleName = "Admin Site";
+        } else if (currentUser.role === "site") {
+          badgeColor = "bg-sky-100 text-sky-800 cursor-default";
+          roleName = "Site Kỹ Thuật";
+        }
+
+        box.innerHTML = `
+          <div class="flex items-center space-x-2">
+            ${isSuperAdmin ? `
+              <button onclick="openProfileModal()" title="Bấm để xem và sửa thông tin tài khoản Super Admin" class="${badgeColor} font-bold px-3 py-1.5 rounded-full text-xs transition flex items-center space-x-1.5 shadow-sm border border-slate-200">
+                <i class="fa-solid fa-circle-user text-sm"></i>
+                <span>${currentUser.name} (${roleName})</span>
+                <i class="fa-solid fa-gear text-[11px] ml-0.5 text-slate-500"></i>
+              </button>
+            ` : `
+              <div title="Tài khoản này do Super Admin quản lý" class="${badgeColor} font-bold px-3 py-1.5 rounded-full text-xs flex items-center space-x-1.5 border border-slate-200">
+                <i class="fa-solid fa-circle-user text-sm"></i>
+                <span>${currentUser.name} (${roleName})</span>
+              </div>
+            `}
+            <button onclick="handleLogout()" class="text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded text-xs transition">
+              <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>Đăng xuất
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    function handleLogout() {
+      currentUser = null;
+      inspectingSiteId = null;
+      localStorage.removeItem("ventech_user");
+      renderAuthInfo();
+      renderMain();
+    }
+
+    function renderMain() {
+      const main = document.getElementById("main-container");
+      if (!currentUser) {
+        renderLoginView(main);
+        return;
+      }
+
+      if (inspectingSiteId) {
+        renderSiteInspectorView(main, inspectingSiteId);
+        return;
+      }
+
+      if (currentUser.role === "superadmin" || currentUser.role === "adminsite") {
+        renderAdminDashboard(main);
+      } else {
+        renderSiteWorkerDashboard(main, currentUser.siteId);
+      }
+    }
+
+    function renderLoginView(container) {
+      container.innerHTML = `
+        <div class="max-w-md mx-auto mt-12 bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+          <div class="p-6 text-center border-b border-slate-100">
+            <img src="${VENTECH_LOGO_BASE64}" class="h-12 mx-auto mb-3 object-contain" alt="Ventech">
+            <h2 class="text-lg font-bold text-slate-800 uppercase">Hệ Thống Báo Cáo Tiến Độ</h2>
+            <p class="text-xs text-slate-500">Dự án Giám Sát Camera & Cáp Quang Trại Miền Trung</p>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tài khoản đăng nhập</label>
+              <input type="text" id="login-user" placeholder="admin, adminsite1 hoặc mã site" class="w-full text-sm px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Mật khẩu</label>
+              <input type="password" id="login-pass" placeholder="Nhập mật khẩu" class="w-full text-sm px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+            </div>
+            <button onclick="handleLoginSubmit()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2.5 rounded-lg text-sm transition shadow-sm mt-2">
+              <i class="fa-solid fa-right-to-bracket mr-1.5"></i>Đăng Nhập Vào Hệ Thống
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleLoginSubmit() {
+      const u = document.getElementById("login-user").value.trim().toLowerCase();
+      const p = document.getElementById("login-pass").value.trim();
+
+      if (!u || !p) return alert("Vui lòng nhập đầy đủ tài khoản và mật khẩu!");
+
+      const foundUser = appData.users.find(x => (x.u.toLowerCase() === u || (x.code && x.code.toLowerCase() === u)) && x.p === p);
+      if (foundUser) {
+        currentUser = { ...foundUser };
+        localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+        inspectingSiteId = null;
+        renderAuthInfo();
+        renderMain();
+      } else {
+        alert("Sai tên đăng nhập hoặc mật khẩu!");
+      }
+    }
+
+    // DASHBOARD CHỈ HUY TRƯỞNG & ADMIN SITE
+    function renderAdminDashboard(container) {
+      ensureDayReport(selectedDate);
+      const dayRep = appData.reports[selectedDate];
+
+      let visibleSites = appData.sites;
+      if (currentUser.role === "adminsite") {
+        visibleSites = appData.sites.filter(s => currentUser.allowedSites && currentUser.allowedSites.includes(s.id));
+      }
+
+      const totalSites = visibleSites.length;
+      const submittedSites = visibleSites.filter(s => dayRep[s.id] && dayRep[s.id].submitted).length;
+
+      let filteredSites = visibleSites.filter(s => {
+        const rep = dayRep[s.id];
+        if (siteFilterStatus === "submitted" && (!rep || !rep.submitted)) return false;
+        if (siteFilterStatus === "pending" && rep && rep.submitted) return false;
+
+        if (siteSearchKeyword.trim()) {
+          const kw = removeVietnameseTones(siteSearchKeyword.trim().toLowerCase());
+          const matchName = removeVietnameseTones((s.name || "").toLowerCase()).includes(kw);
+          const matchCode = (s.code || "").toString().toLowerCase().includes(kw);
+          const matchTech = removeVietnameseTones((s.tech || "").toLowerCase()).includes(kw);
+          const matchId = (s.id || "").toLowerCase().includes(kw);
+          return matchName || matchCode || matchTech || matchId;
+        }
+        return true;
+      });
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-slate-500 uppercase">Ngày Báo Cáo:</span>
+              <input type="date" value="${selectedDate}" onchange="changeDate(this.value)" class="text-sm font-semibold text-sky-800 border border-slate-300 rounded px-2.5 py-1.5 focus:ring-2 focus:ring-sky-500 outline-none">
+              <button onclick="changeDateOffset(-1)" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded">Hôm qua</button>
+              <button onclick="changeDate(new Date().toISOString().split('T')[0])" class="text-xs bg-sky-100 hover:bg-sky-200 text-sky-800 font-medium px-2 py-1.5 rounded">Hôm nay</button>
+              <button onclick="changeDateOffset(1)" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded">Ngày mai</button>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+              ${currentUser.role === "superadmin" ? `
+                <button onclick="openManageSitesModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded shadow-sm transition">
+                  <i class="fa-solid fa-layer-group mr-1"></i>Quản Lý & Tạo Site Mới
+                </button>
+                <button onclick="openManageUsersModal()" class="text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-2 rounded shadow-sm transition">
+                  <i class="fa-solid fa-users-gear mr-1"></i>Thêm & Phân Quyền Admin
+                </button>
+                <button onclick="openEditStagesModal()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded shadow-sm transition">
+                  <i class="fa-solid fa-list-check mr-1"></i>Sửa Nội Dung Giai Đoạn
+                </button>
+              ` : ''}
+              <button onclick="copyZaloSummary()" class="text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium px-3 py-2 rounded shadow-sm transition">
+                <i class="fa-solid fa-copy mr-1"></i>Copy Zalo
+              </button>
+              <button onclick="exportWordReport()" class="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-2 rounded shadow-sm transition">
+                <i class="fa-solid fa-file-word mr-1"></i>Xuất Word
+              </button>
+              <button onclick="triggerPrintPDF()" class="text-xs bg-slate-700 hover:bg-slate-800 text-white font-medium px-3 py-2 rounded shadow-sm transition">
+                <i class="fa-solid fa-print mr-1"></i>In / PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- THẺ CHỈ SỐ -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+              <div class="text-xs text-slate-500 font-medium">Tiến độ nộp báo cáo</div>
+              <div class="text-2xl font-black text-sky-600 mt-1">${submittedSites} / ${totalSites} <span class="text-xs font-normal text-slate-400">Trại</span></div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+              <div class="text-xs text-slate-500 font-medium">Tiến độ GĐ1 Trung Bình</div>
+              <div class="text-2xl font-black text-emerald-600 mt-1">${calculateAvgStage1Global(visibleSites)}%</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+              <div class="text-xs text-slate-500 font-medium">Tiến độ GĐ2 Trung Bình</div>
+              <div class="text-2xl font-black text-amber-600 mt-1">${calculateAvgStage2Global(visibleSites)}%</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-center">
+              <div class="text-xs text-slate-500 font-medium">Tổng ảnh ghi nhận</div>
+              <div class="text-2xl font-black text-indigo-600 mt-1">${countTotalPhotos(visibleSites)} <span class="text-xs font-normal text-slate-400">Ảnh</span></div>
+            </div>
+          </div>
+
+          <!-- KHUNG TÌM KIẾM VÀ BỘ LỌC TRẠI -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="relative flex-1 max-w-lg">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+              <input type="text" id="site-search-input" value="${siteSearchKeyword}" oninput="handleSearchSite(this.value)" placeholder="Tìm kiếm theo Tên trại, Mã site (vd: 19, 22), hoặc Kỹ thuật viên..." class="w-full text-xs pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-sky-500 transition">
+              ${siteSearchKeyword ? `
+                <button onclick="clearSearchSite()" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 text-sm">&times;</button>
+              ` : ''}
+            </div>
+
+            <div class="flex items-center space-x-1.5 text-xs">
+              <span class="font-bold text-slate-500 mr-1 text-[11px] uppercase">Lọc:</span>
+              <button onclick="setFilterStatus('all')" class="px-3 py-1.5 rounded-lg font-semibold transition ${siteFilterStatus === 'all' ? 'bg-slate-800 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                Tất cả (${visibleSites.length})
+              </button>
+              <button onclick="setFilterStatus('submitted')" class="px-3 py-1.5 rounded-lg font-semibold transition ${siteFilterStatus === 'submitted' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                Đã nộp (${submittedSites})
+              </button>
+              <button onclick="setFilterStatus('pending')" class="px-3 py-1.5 rounded-lg font-semibold transition ${siteFilterStatus === 'pending' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+                Chưa nộp (${totalSites - submittedSites})
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+            <span>Hiển thị <strong>${filteredSites.length}</strong> / ${visibleSites.length} trại phù hợp</span>
+            ${siteSearchKeyword || siteFilterStatus !== 'all' ? `
+              <button onclick="resetAllFilters()" class="text-sky-600 hover:underline">Xóa tất cả bộ lọc</button>
+            ` : ''}
+          </div>
+
+          <!-- DANH SÁCH SITE -->
+          ${filteredSites.length === 0 ? `
+            <div class="bg-white p-12 text-center rounded-xl border border-slate-200 shadow-sm text-slate-400">
+              <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300"></i>
+              <p class="text-sm font-semibold text-slate-600">Không tìm thấy trại thi công nào phù hợp!</p>
+              <p class="text-xs mt-1">Hãy thử tìm với từ khóa khác hoặc bấm <button onclick="resetAllFilters()" class="text-sky-600 underline font-semibold">xóa bộ lọc</button>.</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              ${filteredSites.map(site => renderAdminSiteCard(site, dayRep[site.id])).join("")}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function removeVietnameseTones(str) {
+      if (!str) return "";
+      str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+      str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+      str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+      str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+      str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+      str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+      str = str.replace(/đ/g, "d");
+      str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
+      str = str.replace(/\u02C6|\u0306|\u031B/g, "");
+      return str;
+    }
+
+    function handleSearchSite(val) {
+      siteSearchKeyword = val;
+      renderMain();
+      const input = document.getElementById("site-search-input");
+      if (input) {
+        input.focus();
+        input.setSelectionRange(val.length, val.length);
+      }
+    }
+
+    function clearSearchSite() {
+      siteSearchKeyword = "";
+      renderMain();
+    }
+
+    function setFilterStatus(status) {
+      siteFilterStatus = status;
+      renderMain();
+    }
+
+    function resetAllFilters() {
+      siteSearchKeyword = "";
+      siteFilterStatus = "all";
+      renderMain();
+    }
+
+    function calculateAvgStage1Global(siteList) {
+      const dayRep = appData.reports[selectedDate];
+      if (!dayRep) return 100;
+      let sum = 0, count = 0;
+      siteList.forEach(s => {
+        if (dayRep[s.id] && dayRep[s.id].stagesEnabled?.stage1 !== false) {
+          sum += calculateSiteAvgStage1(dayRep[s.id]);
+          count++;
+        }
+      });
+      return count ? Math.round(sum / count) : 100;
+    }
+
+    function calculateAvgStage2Global(siteList) {
+      const dayRep = appData.reports[selectedDate];
+      if (!dayRep) return 0;
+      let sum = 0, count = 0;
+      siteList.forEach(s => {
+        if (dayRep[s.id] && dayRep[s.id].stagesEnabled?.stage2 !== false) {
+          sum += calculateSiteAvgStage2(dayRep[s.id]);
+          count++;
+        }
+      });
+      return count ? Math.round(sum / count) : 0;
+    }
+
+    function countTotalPhotos(siteList) {
+      const dayRep = appData.reports[selectedDate];
+      if (!dayRep) return 0;
+      return siteList.reduce((acc, s) => acc + (dayRep[s.id]?.images ? dayRep[s.id].images.length : 0), 0);
+    }
+
+    function renderAdminSiteCard(site, rep) {
+      const s1Avg = calculateSiteAvgStage1(rep);
+      const s2Avg = calculateSiteAvgStage2(rep);
+      const isDone = rep.submitted;
+      const imgCount = rep.images ? rep.images.length : 0;
+      const stg = rep.stagesEnabled || { stage1: true, stage2: true };
+
+      return `
+        <div class="bg-white rounded-xl border ${isDone ? 'border-emerald-200 ring-1 ring-emerald-100' : 'border-slate-200'} p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+              <div>
+                <span class="text-xs font-bold text-sky-600">#SITE ${site.code}</span>
+                <h3 class="font-bold text-slate-800 text-base leading-tight">${site.name}</h3>
+                <p class="text-xs text-slate-500">Phụ trách: ${site.tech} (${site.phone || 'N/A'})</p>
+              </div>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                ${isDone ? '<i class="fa-solid fa-circle-check mr-1"></i>Đã nộp' : '<i class="fa-solid fa-clock mr-1"></i>Chưa nộp'}
+              </span>
+            </div>
+
+            <!-- BẬT TẮT GIAI ĐOẠN -->
+            <div class="flex items-center justify-between bg-slate-50 p-2 rounded-lg mb-3 text-xs">
+              <span class="font-bold text-slate-600">Giai đoạn kích hoạt:</span>
+              <div class="flex items-center space-x-2">
+                <button onclick="toggleStage('${site.id}', 'stage1')" class="px-2 py-0.5 rounded font-semibold transition ${stg.stage1 !== false ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500 line-through'}">GĐ1</button>
+                <button onclick="toggleStage('${site.id}', 'stage2')" class="px-2 py-0.5 rounded font-semibold transition ${stg.stage2 !== false ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-500 line-through'}">GĐ2</button>
+              </div>
+            </div>
+
+            <div class="space-y-2 mb-4">
+              ${stg.stage1 !== false ? `
+                <div>
+                  <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                    <span>GĐ 1: Hoàn thành thiết bị cơ bản</span>
+                    <span class="text-emerald-600 font-bold">${s1Avg}%</span>
+                  </div>
+                  <div class="w-full bg-slate-100 rounded-full h-2">
+                    <div class="bg-emerald-500 h-2 rounded-full transition-all duration-300" style="width: ${s1Avg}%"></div>
+                  </div>
+                </div>
+              ` : `
+                <div class="text-[11px] text-slate-400 italic py-1 border-b border-dashed border-slate-200">
+                  <i class="fa-solid fa-ban mr-1"></i>Giai đoạn 1 đã tạm tắt
+                </div>
+              `}
+
+              ${stg.stage2 !== false ? `
+                <div>
+                  <div class="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                    <span>GĐ 2: Hoàn thiện cáp & nghiệm thu</span>
+                    <span class="text-sky-600 font-bold">${s2Avg}%</span>
+                  </div>
+                  <div class="w-full bg-slate-100 rounded-full h-2">
+                    <div class="bg-sky-500 h-2 rounded-full transition-all duration-300" style="width: ${s2Avg}%"></div>
+                  </div>
+                </div>
+              ` : `
+                <div class="text-[11px] text-slate-400 italic py-1 border-b border-dashed border-slate-200">
+                  <i class="fa-solid fa-ban mr-1"></i>Giai đoạn 2 đã tạm tắt
+                </div>
+              `}
+            </div>
+
+            <div class="bg-slate-50 p-2.5 rounded text-xs text-slate-600 space-y-1 mb-4">
+              <div><strong>Ảnh ghi nhận:</strong> ${imgCount} ảnh</div>
+              <div class="truncate"><strong>Kế hoạch:</strong> ${rep.planNext || 'Chưa cập nhật'}</div>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <button onclick="downloadSiteImagesZip('${site.id}')" class="w-full text-center text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold py-2 rounded transition">
+              <i class="fa-solid fa-file-zipper mr-1"></i>Tải Toàn Bộ Ảnh (.ZIP)
+            </button>
+            <button onclick="openSiteInspector('${site.id}')" class="w-full text-center text-xs bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold py-2 rounded transition">
+              <i class="fa-solid fa-pen-to-square mr-1"></i>Xem & Chỉnh Sửa Trại Này
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleStage(siteId, stageKey) {
+      const rep = appData.reports[selectedDate][siteId];
+      if (!rep.stagesEnabled) rep.stagesEnabled = { stage1: true, stage2: true };
+      rep.stagesEnabled[stageKey] = !rep.stagesEnabled[stageKey];
+      saveAllData(true);
+      renderMain();
+    }
+
+    function openSiteInspector(siteId) {
+      inspectingSiteId = siteId;
+      renderMain();
+    }
+
+    function closeSiteInspector() {
+      inspectingSiteId = null;
+      renderMain();
+    }
+
+    function renderSiteInspectorView(container, siteId) {
+      ensureDayReport(selectedDate);
+      const site = appData.sites.find(s => s.id === siteId);
+      const rep = appData.reports[selectedDate][siteId];
+
+      container.innerHTML = `
+        <div class="max-w-3xl mx-auto space-y-5">
+          <div class="flex items-center justify-between bg-amber-50 border border-amber-200 px-4 py-2.5 rounded-xl text-xs">
+            <div class="flex items-center space-x-2 text-amber-900 font-medium">
+              <span class="bg-amber-500 text-white font-bold px-2 py-0.5 rounded text-[11px]">Chế Độ Kiểm Soát</span>
+              <span>Bạn đang duyệt và chỉnh sửa dữ liệu cho <strong>${site.name}</strong> với quyền <strong>${currentUser.name}</strong></span>
+            </div>
+            <button onclick="closeSiteInspector()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded transition shadow-sm">
+              <i class="fa-solid fa-arrow-left mr-1"></i>Trở về Dashboard Tổng
+            </button>
+          </div>
+
+          ${renderSiteWorkspace(siteId, rep, true)}
+        </div>
+      `;
+    }
+
+    function renderSiteWorkerDashboard(container, siteId) {
+      ensureDayReport(selectedDate);
+      const rep = appData.reports[selectedDate][siteId];
+
+      container.innerHTML = `
+        <div class="max-w-3xl mx-auto space-y-5">
+          ${renderSiteWorkspace(siteId, rep, false)}
+        </div>
+      `;
+    }
+
+    let currentWorkerTab = "progress";
+    function renderSiteWorkspace(siteId, rep, isAdmin) {
+      const site = appData.sites.find(s => s.id === siteId);
+      return `
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded">Site #${site.code}</span>
+              <h2 class="text-base md:text-lg font-bold text-slate-800">${site.name}</h2>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Kỹ thuật phụ trách: <strong>${site.tech}</strong> (${site.phone || 'N/A'})</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="date" value="${selectedDate}" onchange="changeDate(this.value)" class="text-xs font-semibold text-slate-700 border border-slate-300 rounded px-2 py-1.5 outline-none">
+            <button onclick="manualSaveSiteData('${siteId}')" class="text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded transition shadow-sm flex items-center space-x-1">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Lưu Dữ Liệu</span>
+            </button>
+            <button onclick="submitDayReport('${siteId}')" class="text-xs font-semibold ${rep.submitted ? 'bg-sky-700 hover:bg-sky-800' : 'bg-sky-600 hover:bg-sky-700'} text-white px-3 py-1.5 rounded transition shadow-sm">
+              <i class="fa-solid fa-paper-plane mr-1"></i>${rep.submitted ? 'Đã Nộp' : 'Gửi Báo Cáo'}
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 bg-slate-200 p-1 rounded-xl text-xs font-semibold">
+          <button onclick="setWorkerTab('progress')" class="py-2.5 rounded-lg transition ${currentWorkerTab === 'progress' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}">
+            1. Tiến Độ (% GĐ1 & GĐ2)
+          </button>
+          <button onclick="setWorkerTab('photos')" class="py-2.5 rounded-lg transition ${currentWorkerTab === 'photos' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}">
+            2. Ảnh Ngày (${rep.images ? rep.images.length : 0})
+          </button>
+          <button onclick="setWorkerTab('plan')" class="py-2.5 rounded-lg transition ${currentWorkerTab === 'plan' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}">
+            3. Kế Hoạch & Khó Khăn
+          </button>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+          ${currentWorkerTab === 'progress' ? renderWorkerProgressTab(siteId, rep) : ''}
+          ${currentWorkerTab === 'photos' ? renderWorkerPhotosTab(siteId, rep) : ''}
+          ${currentWorkerTab === 'plan' ? renderWorkerPlanTab(siteId, rep) : ''}
+        </div>
+
+        <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-md flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-slate-800">Hoàn tất chỉnh sửa ngày ${selectedDate}?</div>
+            <div class="text-[11px] text-slate-500">Dữ liệu sẽ được đồng bộ ngay lên máy chủ Firebase cho toàn bộ hệ thống</div>
+          </div>
+          <button onclick="manualSaveSiteData('${siteId}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-floppy-disk text-sm"></i>
+            <span>LƯU & ĐỒNG BỘ DỮ LIỆU SITE NÀY</span>
+          </button>
+        </div>
+      `;
+    }
+
+    function manualSaveSiteData(siteId) {
+      saveAllData(false);
+    }
+
+    function setWorkerTab(tab) {
+      currentWorkerTab = tab;
+      renderMain();
+    }
+
+    function renderWorkerProgressTab(siteId, rep) {
+      const stg = rep.stagesEnabled || { stage1: true, stage2: true };
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-sky-50 border border-sky-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-xs font-bold text-sky-900 uppercase flex items-center">
+                <i class="fa-solid fa-sliders mr-1.5 text-sky-600"></i>Cấu Hình Bật / Tắt Giai Đoạn
+              </span>
+              <p class="text-[11px] text-sky-700 mt-0.5">Admin và Kỹ thuật viên có thể ẩn/hiện giai đoạn theo tiến độ thực tế</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button onclick="toggleStage('${siteId}', 'stage1')" class="text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${stg.stage1 !== false ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-300 text-slate-500'}">
+                <i class="fa-solid ${stg.stage1 !== false ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                <span>Giai Đoạn 1</span>
+              </button>
+              <button onclick="toggleStage('${siteId}', 'stage2')" class="text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center space-x-1.5 ${stg.stage2 !== false ? 'bg-sky-600 text-white shadow-sm' : 'bg-white border border-slate-300 text-slate-500'}">
+                <i class="fa-solid ${stg.stage2 !== false ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                <span>Giai Đoạn 2</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- GIAI ĐOẠN 1 -->
+          ${stg.stage1 !== false ? `
+            <div class="border border-emerald-200 rounded-xl p-4 bg-emerald-50/40">
+              <h4 class="text-sm font-bold text-emerald-900 uppercase mb-3 flex items-center justify-between border-b border-emerald-200 pb-2">
+                <span class="flex items-center">
+                  <i class="fa-solid fa-list-check text-emerald-600 mr-2"></i>Giai Đoạn 1: Lắp Đặt Thiết Bị Cơ Bản
+                </span>
+                <span class="text-xs text-emerald-700 font-semibold">Tất cả hạng mục</span>
+              </h4>
+              <div class="space-y-3">
+                ${appData.stage1Template.map(item => {
+                  const val = rep.stage1[item.code] !== undefined ? rep.stage1[item.code] : 100;
+                  return `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between py-1.5 border-b border-emerald-100 last:border-b-0 gap-2">
+                      <span class="text-xs font-medium text-slate-800">${item.code}. ${item.name}</span>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-xs font-bold text-emerald-700 w-10 text-right">${val}%</span>
+                        <input type="range" min="0" max="100" step="5" value="${val}" oninput="updateStageProgressLive('${siteId}', 'stage1', '${item.code}', this.value)" onchange="updateStageProgress('${siteId}', 'stage1', '${item.code}', this.value)" class="w-24 accent-emerald-600">
+                        <button onclick="updateStageProgress('${siteId}', 'stage1', '${item.code}', 100)" class="text-[11px] bg-white border border-emerald-300 hover:bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">100%</button>
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          ` : `
+            <div class="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
+              <i class="fa-solid fa-eye-slash mr-1"></i>Giai đoạn 1 đang được <strong>TẮT</strong> cho trại này.
+            </div>
+          `}
+
+          <!-- GIAI ĐOẠN 2 -->
+          ${stg.stage2 !== false ? `
+            <div class="border border-sky-200 rounded-xl p-4 bg-sky-50/30">
+              <h4 class="text-sm font-bold text-slate-800 uppercase mb-3 flex items-center justify-between border-b border-sky-100 pb-2">
+                <span class="flex items-center text-sky-800">
+                  <i class="fa-solid fa-circle-check text-sky-600 mr-2"></i>Giai Đoạn 2: Hoàn thiện cáp quang & Nghiệm thu
+                </span>
+                <span class="text-xs text-sky-600 font-normal">Chạm nút + để tăng nhanh</span>
+              </h4>
+              <div class="space-y-4">
+                ${appData.stage2Template.map(item => {
+                  const val = rep.stage2[item.code] !== undefined ? rep.stage2[item.code] : 0;
+                  return `
+                    <div class="border-b border-slate-100 pb-3">
+                      <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1.5">
+                        <span>${item.code}. ${item.name}</span>
+                        <span class="text-sky-700 font-bold">${val}%</span>
+                      </div>
+                      <div class="flex items-center space-x-2">
+                        <input type="range" min="0" max="100" step="5" value="${val}" oninput="updateStageProgressLive('${siteId}', 'stage2', '${item.code}', this.value)" onchange="updateStageProgress('${siteId}', 'stage2', '${item.code}', this.value)" class="flex-1 accent-sky-600">
+                        <button onclick="addProgress('${siteId}', 'stage2', '${item.code}', 10)" class="text-xs bg-slate-100 hover:bg-slate-200 font-bold px-2 py-1 rounded">+10%</button>
+                        <button onclick="updateStageProgress('${siteId}', 'stage2', '${item.code}', 100)" class="text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-2 py-1 rounded">100%</button>
+                      </div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+          ` : `
+            <div class="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500">
+              <i class="fa-solid fa-eye-slash mr-1"></i>Giai đoạn 2 đang được <strong>TẮT</strong> cho trại này.
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function updateStageProgressLive(siteId, stage, code, val) {
+      if (!appData.reports[selectedDate][siteId][stage]) {
+        appData.reports[selectedDate][siteId][stage] = {};
+      }
+      appData.reports[selectedDate][siteId][stage][code] = Number(val);
+    }
+
+    function updateStageProgress(siteId, stage, code, val) {
+      if (!appData.reports[selectedDate][siteId][stage]) {
+        appData.reports[selectedDate][siteId][stage] = {};
+      }
+      appData.reports[selectedDate][siteId][stage][code] = Number(val);
+      saveAllData(true);
+      renderMain();
+    }
+
+    function addProgress(siteId, stage, code, delta) {
+      const cur = appData.reports[selectedDate][siteId][stage][code] || 0;
+      const next = Math.min(100, cur + delta);
+      updateStageProgress(siteId, stage, code, next);
+    }
+
+    function renderWorkerPhotosTab(siteId, rep) {
+      const imgs = rep.images || [];
+      return `
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2 gap-2">
+            <div>
+              <h4 class="text-sm font-bold text-slate-800 uppercase">Hình Ảnh Thi Công Ngày ${selectedDate}</h4>
+              <p class="text-xs text-slate-500">Chụp bằng Timemark có định vị & ngày giờ thực</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              ${imgs.length > 0 ? `
+                <button onclick="downloadSiteImagesZip('${siteId}')" class="text-xs bg-amber-500 hover:bg-amber-600 text-white font-semibold px-3 py-2 rounded-lg transition inline-block">
+                  <i class="fa-solid fa-file-zipper mr-1"></i>Tải ZIP (${imgs.length})
+                </button>
+              ` : ''}
+              <input type="file" id="img-uploader" multiple accept="image/*" class="hidden" onchange="handleImageUpload('${siteId}', this.files)">
+              <label for="img-uploader" class="cursor-pointer text-xs bg-sky-600 hover:bg-sky-700 text-white font-semibold px-3 py-2 rounded-lg transition inline-block">
+                <i class="fa-solid fa-camera mr-1"></i>Chọn Ảnh Tải Lên
+              </label>
+            </div>
+          </div>
+
+          ${imgs.length === 0 ? `
+            <div class="text-center py-8 text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl">
+              <i class="fa-regular fa-images text-3xl mb-2"></i>
+              <p>Chưa có hình ảnh nào cho ngày này. Hãy tải lên ảnh hiện trường!</p>
+            </div>
+          ` : `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${imgs.map((img, idx) => `
+                <div class="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                  <img src="${img.src}" class="w-full h-48 object-cover bg-black" alt="Ảnh thi công">
+                  <div class="p-2 space-y-1">
+                    <input type="text" value="${img.caption || ''}" onchange="updateImageCaption('${siteId}', ${idx}, this.value)" placeholder="Nhập chú thích..." class="w-full text-xs px-2 py-1 border border-slate-300 rounded outline-none focus:border-sky-500">
+                    <div class="flex justify-between items-center text-[11px] text-slate-400">
+                      <span>Ảnh #${idx + 1}</span>
+                      <button onclick="removeImage('${siteId}', ${idx})" class="text-rose-600 hover:underline">Xóa ảnh</button>
+                    </div>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function handleImageUpload(siteId, files) {
+      if (!files || !files.length) return;
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const maxDim = 1000;
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) { h = (h * maxDim) / w; w = maxDim; }
+              else { w = (w * maxDim) / h; h = maxDim; }
+            }
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = canvas.toDataURL("image/jpeg", 0.75);
+
+            if (!appData.reports[selectedDate][siteId].images) {
+              appData.reports[selectedDate][siteId].images = [];
+            }
+            appData.reports[selectedDate][siteId].images.push({
+              src: compressed,
+              caption: "Thi công hoàn thiện camera và cáp quang"
+            });
+            saveAllData(true);
+            renderMain();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function updateImageCaption(siteId, idx, caption) {
+      appData.reports[selectedDate][siteId].images[idx].caption = caption;
+      saveAllData(true);
+    }
+
+    function removeImage(siteId, idx) {
+      if (confirm("Bạn có chắc muốn xóa ảnh này?")) {
+        appData.reports[selectedDate][siteId].images.splice(idx, 1);
+        saveAllData(true);
+        renderMain();
+      }
+    }
+
+    function downloadSiteImagesZip(siteId) {
+      const site = appData.sites.find(s => s.id === siteId);
+      const rep = appData.reports[selectedDate][siteId];
+      const imgs = rep ? rep.images || [] : [];
+
+      if (!imgs.length) return alert(`Trại ${site.name} chưa có hình ảnh nào trong ngày ${selectedDate}!`);
+      if (typeof JSZip === "undefined") return alert("Thư viện JSZip đang tải, vui lòng thử lại sau!");
+
+      const zip = new JSZip();
+      let textLog = `DANH SÁCH HÌNH ẢNH HIỆN TRƯỜNG\nSite: ${site.name}\nNgày: ${selectedDate}\nTổng số ảnh: ${imgs.length}\n-----------------------------------\n`;
+
+      imgs.forEach((img, idx) => {
+        const base64Data = img.src.split(",")[1];
+        const numStr = (idx + 1).toString().padStart(2, "0");
+        const cleanCaption = (img.caption || "Hinh_anh_thi_cong").replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, "_");
+        const filename = `${numStr}_${site.id}_${selectedDate}_${cleanCaption}.jpg`;
+
+        zip.file(filename, base64Data, { base64: true });
+        textLog += `${numStr}. ${filename}\n   Chú thích: ${img.caption || "Không có chú thích"}\n\n`;
+      });
+
+      zip.file("Danh_sach_chu_thich.txt", textLog);
+
+      zip.generateAsync({ type: "blob" }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Anh_Hien_Truong_${site.id}_${selectedDate}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+
+    function renderWorkerPlanTab(siteId, rep) {
+      return `
+        <div class="space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h4 class="text-sm font-bold text-slate-800 uppercase">Khó Khăn & Kế Hoạch Ngày Tới</h4>
+            <button onclick="startVoiceAssistant('${siteId}')" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1.5 rounded transition">
+              <i class="fa-solid fa-microphone mr-1"></i>Nói bằng giọng nói
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Khó khăn - Vướng mắc (Thời tiết, di chuyển, cách ly):</label>
+            <textarea id="issue-txt" rows="3" onchange="updateWorkerText('${siteId}', 'issues', this.value)" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-sky-500">${rep.issues || ''}</textarea>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Công việc dự kiến ngày tiếp theo:</label>
+            <textarea id="plan-txt" rows="3" onchange="updateWorkerText('${siteId}', 'planNext', this.value)" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-sky-500">${rep.planNext || ''}</textarea>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateWorkerText(siteId, field, val) {
+      appData.reports[selectedDate][siteId][field] = val;
+      saveAllData(true);
+    }
+
+    function startVoiceAssistant(siteId) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return alert("Trình duyệt không hỗ trợ nhận diện giọng nói! Hãy dùng Google Chrome.");
+      const recognition = new SpeechRecognition();
+      recognition.lang = "vi-VN";
+      recognition.start();
+
+      alert("Đang lắng nghe giọng nói tiếng Việt... Hãy nói: 'Hôm nay trời mưa khó kéo cáp' hoặc 'Ngày mai cấu hình camera'");
+
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        if (text.includes("mưa") || text.includes("khó khăn") || text.includes("cách ly")) {
+          appData.reports[selectedDate][siteId].issues += "\n- " + text;
+        } else {
+          appData.reports[selectedDate][siteId].planNext += "\n- " + text;
+        }
+        saveAllData(true);
+        renderMain();
+      };
+    }
+
+    function submitDayReport(siteId) {
+      appData.reports[selectedDate][siteId].submitted = true;
+      appData.reports[selectedDate][siteId].submitTime = new Date().toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' });
+      saveAllData(false);
+      showToast(`Đã gửi báo cáo ngày ${selectedDate} của trại thành công!`);
+      renderMain();
+    }
+
+    function changeDate(newD) {
+      selectedDate = newD;
+      ensureDayReport(selectedDate);
+      renderMain();
+    }
+
+    function changeDateOffset(offset) {
+      const d = new Date(selectedDate);
+      d.setDate(d.getDate() + offset);
+      changeDate(d.toISOString().split("T")[0]);
+    }
+
+    // ========================================================
+    // MODAL XEM & SỬA THÔNG TIN CỦA SUPER ADMIN (DUY NHẤT)
+    // ========================================================
+    function openProfileModal() {
+      if (!currentUser || currentUser.role !== "superadmin") return;
+      const modal = document.getElementById("modal-container");
+      modal.classList.remove("hidden");
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-md w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h3 class="font-bold text-slate-800 text-base flex items-center">
+                <i class="fa-solid fa-id-card text-sky-600 mr-2"></i>Hồ Sơ Super Admin (Tổng Quyền)
+              </h3>
+              <p class="text-xs text-slate-500">Chỉ Super Admin mới có quyền đổi thông tin này</p>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+          </div>
+
+          <div class="space-y-4 text-xs">
+            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <div class="flex justify-between py-1 border-b border-slate-200">
+                <span class="text-slate-500">Vai trò trong hệ thống:</span>
+                <strong class="text-rose-700 uppercase">SUPER ADMIN</strong>
+              </div>
+              <div class="flex justify-between py-1 pt-1.5">
+                <span class="text-slate-500">Quyền hạn:</span>
+                <span class="font-semibold text-slate-700">Toàn bộ 100% hệ thống (*)</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Tên Hiển Thị (Họ & Tên):</label>
+              <input type="text" id="prof-name" value="${currentUser.name || ''}" class="w-full p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-sky-500 font-semibold">
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Tên Đăng Nhập (Username):</label>
+              <input type="text" id="prof-u" value="${currentUser.u || ''}" class="w-full p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-sky-500 font-mono">
+              <span class="text-[11px] text-slate-400 italic">Dùng tên này để đăng nhập vào trang web</span>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Mật Khẩu Mới (Password):</label>
+              <input type="text" id="prof-p" value="${currentUser.p || ''}" class="w-full p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-sky-500 font-mono">
+            </div>
+
+            <div class="pt-2">
+              <button onclick="saveUserProfile()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg transition shadow-sm flex items-center justify-center space-x-1.5">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>LƯU THÔNG TIN SUPER ADMIN</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveUserProfile() {
+      if (!currentUser || currentUser.role !== "superadmin") return;
+      const newName = document.getElementById("prof-name").value.trim();
+      const newU = document.getElementById("prof-u").value.trim().toLowerCase();
+      const newP = document.getElementById("prof-p").value.trim();
+
+      if (!newName || !newU || !newP) {
+        return alert("Vui lòng không để trống họ tên, tài khoản và mật khẩu!");
+      }
+
+      const exist = appData.users.find(x => x.u.toLowerCase() === newU && x.u.toLowerCase() !== currentUser.u.toLowerCase());
+      if (exist) {
+        return alert("Tên đăng nhập này đã có người sử dụng, vui lòng chọn tên khác!");
+      }
+
+      const targetUser = appData.users.find(x => x.u.toLowerCase() === currentUser.u.toLowerCase());
+      if (targetUser) {
+        targetUser.name = newName;
+        targetUser.u = newU;
+        targetUser.p = newP;
+      }
+
+      currentUser.name = newName;
+      currentUser.u = newU;
+      currentUser.p = newP;
+      localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+
+      saveAllData(false);
+      closeModal();
+      renderAuthInfo();
+      renderMain();
+      showToast("Đã cập nhật thông tin Super Admin thành công!");
+    }
+
+    // ========================================================
+    // MODAL HƯỚNG DẪN THÊM VÀO MÀN HÌNH CHÍNH (ANDROID & IOS)
+    // ========================================================
+    function showInstallInstructions() {
+      const modal = document.getElementById("modal-container");
+      modal.classList.remove("hidden");
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div class="flex items-center space-x-2">
+              <i class="fa-solid fa-mobile-screen-button text-sky-600 text-lg"></i>
+              <h3 class="font-bold text-slate-800 text-base">Cài Đặt Web Lên Màn Hình Điện Thoại</h3>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+          </div>
+
+          <div class="space-y-4 text-xs text-slate-700">
+            <!-- HƯỚNG DẪN ANDROID -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+              <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center text-emerald-700">
+                <i class="fa-brands fa-android text-base mr-1.5"></i>1. Dành cho điện thoại Android (Chrome / Cốc Cốc):
+              </h4>
+              <ol class="list-decimal list-inside space-y-1 text-slate-600 pl-1 leading-relaxed">
+                <li>Mở liên kết web này bằng trình duyệt <strong>Google Chrome</strong>.</li>
+                <li>Bấm vào biểu tượng <strong>3 dấu chấm (⋮)</strong> ở góc trên bên phải màn hình.</li>
+                <li>Chọn mục <strong>"Thêm vào Màn hình chính"</strong> (hoặc <em>"Cài đặt ứng dụng"</em>).</li>
+                <li>Bấm <strong>Thêm</strong>. Biểu tượng App Ventech sẽ xuất hiện ngay trên màn hình nền điện thoại như 1 ứng dụng thật!</li>
+              </ol>
+            </div>
+
+            <!-- HƯỚNG DẪN IPHONE (IOS) -->
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+              <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center text-sky-700">
+                <i class="fa-brands fa-apple text-base mr-1.5"></i>2. Dành cho iPhone / iPad (Trình duyệt Safari):
+              </h4>
+              <ol class="list-decimal list-inside space-y-1 text-slate-600 pl-1 leading-relaxed">
+                <li>Mở liên kết web này bằng trình duyệt <strong>Safari</strong> trên iPhone.</li>
+                <li>Bấm vào biểu tượng nút <strong>Chia sẻ (hình vuông có mũi tên trỏ lên <i class="fa-solid fa-arrow-up-from-bracket"></i>)</strong> ở thanh dưới cùng.</li>
+                <li>Cuộn xuống và chọn mục <strong>"Thêm vào MH chính"</strong> (<em>Add to Home Screen</em>).</li>
+                <li>Bấm <strong>Thêm</strong> ở góc trên bên phải. Xong! Bạn có thể mở app trực tiếp từ màn hình iPhone mà không cần nhập lại link.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="mt-5 border-t border-slate-100 pt-3 text-right">
+            <button onclick="closeModal()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition">
+              Đã hiểu & Đóng
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ========================================================
+    // MODAL SUPER ADMIN 1: QUẢN LÝ, TẠO & SỬA SITE
+    // ========================================================
+    function openManageSitesModal(editIdx = null) {
+      if (!currentUser || currentUser.role !== "superadmin") return;
+      const modal = document.getElementById("modal-container");
+      modal.classList.remove("hidden");
+
+      const editingSite = editIdx !== null ? appData.sites[editIdx] : null;
+
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h3 class="font-bold text-slate-800 text-base flex items-center">
+                <i class="fa-solid fa-layer-group text-emerald-600 mr-2"></i>${editingSite ? 'Chỉnh Sửa Thông Tin Trại' : 'Quản Lý & Tạo Trại (Site) Mới'}
+              </h3>
+              <p class="text-xs text-slate-500">Super Admin có thể tạo mới, chỉnh sửa thông tin hoặc xóa các trại thi công</p>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+          </div>
+
+          <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200 mb-6 space-y-3">
+            <h4 class="text-xs font-bold text-emerald-900 uppercase">${editingSite ? 'Cập Nhật Trại: ' + editingSite.name : 'Thêm Trại Thi Công Mới'}</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Mã Số Site (vd: 25, 26):</label>
+                <input type="text" id="site-new-code" value="${editingSite ? editingSite.code : ''}" placeholder="vd: 25" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tên Trại (Viết in hoa):</label>
+                <input type="text" id="site-new-name" value="${editingSite ? editingSite.name : ''}" placeholder="vd: TRẠI EAHLEO" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Họ Tên Kỹ Thuật Viên Phụ Trách:</label>
+                <input type="text" id="site-new-tech" value="${editingSite ? editingSite.tech : ''}" placeholder="vd: Trần Văn Hùng" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Số Điện Thoại:</label>
+                <input type="text" id="site-new-phone" value="${editingSite ? (editingSite.phone || '') : ''}" placeholder="vd: 0918.888.999" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tên Đăng Nhập (Username):</label>
+                <input type="text" id="site-new-id" value="${editingSite ? editingSite.id : ''}" ${editingSite ? 'readonly class="bg-slate-100 text-slate-500 cursor-not-allowed font-mono"' : 'class="font-mono"'} placeholder="vd: eahleo" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Mật Khẩu Đăng Nhập:</label>
+                <input type="text" id="site-new-pass" value="${editingSite ? (getSitePass(editingSite.id)) : '123456'}" class="w-full text-xs p-2 border border-slate-300 rounded outline-none focus:ring-1 focus:ring-emerald-500 font-mono">
+              </div>
+            </div>
+            
+            <div class="flex items-center space-x-2 pt-1">
+              <button onclick="handleSaveSite(${editIdx !== null ? editIdx : 'null'})" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-xs transition shadow-sm">
+                <i class="fa-solid fa-floppy-disk mr-1"></i>${editingSite ? 'Lưu Thay Đổi Trại Này' : 'Tạo & Kích Hoạt Site Này Ngay'}
+              </button>
+              ${editingSite ? `
+                <button onclick="openManageSitesModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 py-2.5 rounded-lg text-xs transition">Hủy sửa</button>
+              ` : ''}
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh Sách Trại Đang Quản Lý (${appData.sites.length})</h4>
+            <div class="space-y-2">
+              ${appData.sites.map((s, idx) => `
+                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
+                  <div>
+                    <span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-[11px]">#SITE ${s.code}</span>
+                    <strong class="ml-1 text-slate-800">${s.name}</strong>
+                    <div class="text-[11px] text-slate-500 mt-0.5">
+                      Phụ trách: <strong>${s.tech}</strong> (${s.phone || 'N/A'}) | User: <span class="font-mono bg-slate-100 px-1 rounded">${s.id}</span> | MK: <span class="font-mono bg-slate-100 px-1 rounded">${getSitePass(s.id)}</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-1.5">
+                    <button onclick="openManageSitesModal(${idx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
+                      <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
+                    </button>
+                    <button onclick="deleteSite(${idx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
+                      <i class="fa-solid fa-trash mr-1"></i>Xóa
+                    </button>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function getSitePass(siteId) {
+      const u = appData.users.find(x => x.siteId === siteId || x.u === siteId);
+      return u ? u.p : "123456";
+    }
+
+    function handleSaveSite(editIdx) {
+      const code = document.getElementById("site-new-code").value.trim();
+      const name = document.getElementById("site-new-name").value.trim();
+      const tech = document.getElementById("site-new-tech").value.trim();
+      const phone = document.getElementById("site-new-phone").value.trim();
+      const pass = document.getElementById("site-new-pass").value.trim() || "123456";
+      let id = document.getElementById("site-new-id").value.trim().toLowerCase();
+
+      if (!code || !name || !tech) {
+        return alert("Vui lòng điền đầy đủ: Mã site, Tên trại và Người phụ trách!");
+      }
+
+      if (editIdx !== null) {
+        const s = appData.sites[editIdx];
+        s.code = code;
+        s.name = name;
+        s.tech = tech;
+        s.phone = phone;
+
+        const u = appData.users.find(x => x.siteId === s.id || x.u === s.id);
+        if (u) {
+          u.name = name;
+          u.code = code;
+          u.p = pass;
+        }
+
+        saveAllData(false);
+        alert(`Đã cập nhật thông tin trại ${name} thành công!`);
+        openManageSitesModal();
+        renderMain();
+      } else {
+        if (!id) {
+          id = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        }
+
+        if (appData.sites.some(x => x.id === id || x.code === code)) {
+          return alert("Mã số site hoặc tên đăng nhập này đã bị trùng!");
+        }
+
+        const newSiteObj = { id, code, name, tech, phone };
+        appData.sites.push(newSiteObj);
+
+        if (!appData.users.some(x => x.u === id)) {
+          appData.users.push({
+            u: id,
+            p: pass,
+            role: "site",
+            siteId: id,
+            name: name,
+            code: code
+          });
+        }
+
+        ensureDayReport(selectedDate);
+        saveAllData(false);
+        alert(`Đã tạo thành công ${name} (#Site ${code})!`);
+        openManageSitesModal();
+        renderMain();
+      }
+    }
+
+    function deleteSite(idx) {
+      const s = appData.sites[idx];
+      if (confirm(`Bạn có chắc chắn muốn xóa "${s.name}"? Dữ liệu của site này sẽ bị gỡ bỏ.`)) {
+        appData.sites.splice(idx, 1);
+        appData.users = appData.users.filter(x => x.siteId !== s.id);
+        appData.users.forEach(u => {
+          if (u.allowedSites) {
+            u.allowedSites = u.allowedSites.filter(siteId => siteId !== s.id);
+          }
+        });
+        saveAllData(false);
+        openManageSitesModal();
+        renderMain();
+      }
+    }
+
+    // ========================================================
+    // MODAL SUPER ADMIN 2: QUẢN LÝ, TẠO & SỬA TÀI KHOẢN ADMIN
+    // ========================================================
+    function openManageUsersModal(editIdx = null) {
+      if (!currentUser || currentUser.role !== "superadmin") return;
+      const modal = document.getElementById("modal-container");
+      modal.classList.remove("hidden");
+
+      const editingUser = editIdx !== null ? appData.users[editIdx] : null;
+
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h3 class="font-bold text-slate-800 text-base flex items-center">
+                <i class="fa-solid fa-users-gear text-rose-600 mr-2"></i>${editingUser ? 'Chỉnh Sửa Tài Khoản: ' + editingUser.name : 'Quản Lý & Phân Quyền Tài Khoản'}
+              </h3>
+              <p class="text-xs text-slate-500">Super Admin có toàn quyền tạo mới, phân quyền site, sửa mật khẩu hoặc xóa tài khoản</p>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+          </div>
+
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-3">
+            <h4 class="text-xs font-bold text-slate-700 uppercase">${editingUser ? 'Cập Nhật Tài Khoản' : 'Thêm Tài Khoản Mới'}</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tên đăng nhập:</label>
+                <input type="text" id="new-u" value="${editingUser ? editingUser.u : ''}" ${editingUser && editingUser.u === 'admin' ? 'readonly class="bg-slate-200 text-slate-500 cursor-not-allowed font-mono"' : 'class="font-mono"'} placeholder="Tên đăng nhập" class="w-full text-xs p-2 border border-slate-300 rounded outline-none">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Mật khẩu:</label>
+                <input type="text" id="new-p" value="${editingUser ? editingUser.p : ''}" placeholder="Mật khẩu" class="w-full text-xs p-2 border border-slate-300 rounded outline-none font-mono">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tên hiển thị:</label>
+                <input type="text" id="new-name" value="${editingUser ? editingUser.name : ''}" placeholder="Tên hiển thị" class="w-full text-xs p-2 border border-slate-300 rounded outline-none">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Vai trò & Site được phép quản lý:</label>
+              <select id="new-role" onchange="toggleSiteCheckboxes(this.value)" class="text-xs p-2 border border-slate-300 rounded w-full outline-none mb-2">
+                <option value="adminsite" ${editingUser && editingUser.role === 'adminsite' ? 'selected' : ''}>Admin Site (Quản lý cụm trại được chỉ định)</option>
+                <option value="superadmin" ${editingUser && editingUser.role === 'superadmin' ? 'selected' : ''}>Super Admin (Toàn quyền toàn hệ thống)</option>
+                <option value="site" ${editingUser && editingUser.role === 'site' ? 'selected' : ''}>Site Kỹ Thuật (Chỉ nộp báo cáo trại cá nhân)</option>
+              </select>
+              <div id="site-checkboxes-container" class="grid grid-cols-2 md:grid-cols-3 gap-2 bg-white p-2.5 rounded border border-slate-200 max-h-40 overflow-y-auto" style="${editingUser && editingUser.role === 'superadmin' ? 'display: none;' : ''}">
+                ${appData.sites.map(s => {
+                  const isChecked = editingUser && (editingUser.allowedSites?.includes(s.id) || editingUser.siteId === s.id);
+                  return `
+                    <label class="flex items-center space-x-1.5 text-xs text-slate-700">
+                      <input type="checkbox" value="${s.id}" ${isChecked ? 'checked' : ''} class="site-cb accent-sky-600">
+                      <span>${s.name}</span>
+                    </label>
+                  `;
+                }).join("")}
+              </div>
+            </div>
+            
+            <div class="flex items-center space-x-2 pt-1">
+              <button onclick="handleSaveUser(${editIdx !== null ? editIdx : 'null'})" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 rounded text-xs transition shadow-sm">
+                <i class="fa-solid fa-floppy-disk mr-1"></i>${editingUser ? 'Lưu Cập Nhật Tài Khoản' : 'Lưu & Tạo Tài Khoản'}
+              </button>
+              ${editingUser ? `
+                <button onclick="openManageUsersModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 py-2 rounded text-xs transition">Hủy sửa</button>
+              ` : ''}
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh Sách Tài Khoản Hệ Thống</h4>
+            <div class="space-y-2">
+              ${appData.users.map((u, idx) => `
+                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
+                  <div>
+                    <div class="font-bold text-slate-800">${u.name} <span class="font-normal text-slate-500 font-mono">(@${u.u})</span></div>
+                    <div class="text-[11px] text-slate-500">
+                      Vai trò: <strong class="text-sky-700">${u.role.toUpperCase()}</strong> | Mật khẩu: <span class="bg-slate-100 px-1 rounded font-mono font-bold">${u.p}</span>
+                    </div>
+                    <div class="text-[11px] text-slate-600 mt-0.5">
+                      Site quản lý: <strong>${u.role === 'superadmin' ? 'Tất cả các Site (*)' : (u.allowedSites ? u.allowedSites.join(', ') : (u.siteId || 'Trại cá nhân'))}</strong>
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-1.5">
+                    <button onclick="openManageUsersModal(${idx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
+                      <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
+                    </button>
+                    ${u.u !== 'admin' ? `
+                      <button onclick="deleteUser(${idx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
+                        <i class="fa-solid fa-trash mr-1"></i>Xóa
+                      </button>
+                    ` : '<span class="text-xs text-slate-400 font-semibold italic px-2">Gốc</span>'}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleSaveUser(editIdx) {
+      const u = document.getElementById("new-u").value.trim().toLowerCase();
+      const p = document.getElementById("new-p").value.trim();
+      const name = document.getElementById("new-name").value.trim();
+      const role = document.getElementById("new-role").value;
+
+      if (!u || !p || !name) return alert("Vui lòng điền đầy đủ tên đăng nhập, mật khẩu và tên hiển thị!");
+
+      let allowedSites = [];
+      if (role === "superadmin") {
+        allowedSites = ["*"];
+      } else {
+        const cbs = document.querySelectorAll(".site-cb:checked");
+        allowedSites = Array.from(cbs).map(c => c.value);
+        if (!allowedSites.length && role === "adminsite") {
+          return alert("Vui lòng chọn ít nhất 1 site cho Admin này quản lý!");
+        }
+      }
+
+      if (editIdx !== null) {
+        const target = appData.users[editIdx];
+        target.u = u;
+        target.p = p;
+        target.name = name;
+        target.role = role;
+        target.allowedSites = allowedSites;
+        if (role === "site" && allowedSites.length) {
+          target.siteId = allowedSites[0];
+        }
+
+        if (currentUser && currentUser.u.toLowerCase() === target.u.toLowerCase()) {
+          currentUser = { ...target };
+          localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+        }
+
+        saveAllData(false);
+        alert(`Đã cập nhật thông tin tài khoản ${name} thành công!`);
+        openManageUsersModal();
+        renderAuthInfo();
+        renderMain();
+      } else {
+        if (appData.users.some(x => x.u === u)) return alert("Tên đăng nhập này đã tồn tại!");
+
+        const newObj = { u, p, name, role, allowedSites };
+        if (role === "site" && allowedSites.length) {
+          newObj.siteId = allowedSites[0];
+        }
+        appData.users.push(newObj);
+        saveAllData(false);
+        alert(`Đã tạo tài khoản ${name} thành công!`);
+        openManageUsersModal();
+        renderAuthInfo();
+      }
+    }
+
+    function deleteUser(idx) {
+      if (confirm("Bạn có chắc muốn xóa tài khoản này?")) {
+        appData.users.splice(idx, 1);
+        saveAllData(false);
+        openManageUsersModal();
+      }
+    }
+
+    // ========================================================
+    // MODAL SUPER ADMIN 3: THAY ĐỔI NỘI DUNG GIAI ĐOẠN
+    // ========================================================
+    function openEditStagesModal() {
+      if (!currentUser || currentUser.role !== "superadmin") return;
+      const modal = document.getElementById("modal-container");
+      modal.classList.remove("hidden");
+      modal.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <h3 class="font-bold text-slate-800 text-base flex items-center">
+                <i class="fa-solid fa-pen-to-square text-indigo-600 mr-2"></i>Thay Đổi Nội Dung & Thêm Hạng Mục Giai Đoạn
+              </h3>
+              <p class="text-xs text-slate-500">Super Admin có toàn quyền chỉnh sửa các công việc trong GĐ1 và GĐ2 cho toàn hệ thống</p>
+            </div>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+          </div>
+
+          <div class="space-y-6">
+            <div class="border border-emerald-200 p-4 rounded-xl bg-emerald-50/30">
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="text-xs font-bold text-emerald-900 uppercase">Giai Đoạn 1: Lắp Đặt Thiết Bị Cơ Bản</h4>
+                <button onclick="addNewItemToStage('stage1')" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2.5 py-1 rounded">
+                  <i class="fa-solid fa-plus mr-1"></i>Thêm việc GĐ1
+                </button>
+              </div>
+              <div class="space-y-2">
+                ${appData.stage1Template.map((item, idx) => `
+                  <div class="flex items-center space-x-2 bg-white p-2 rounded border border-emerald-100 text-xs">
+                    <input type="text" value="${item.code}" onchange="updateStageItem('stage1', ${idx}, 'code', this.value)" class="w-16 font-bold text-center border border-slate-200 rounded p-1">
+                    <input type="text" value="${item.name}" onchange="updateStageItem('stage1', ${idx}, 'name', this.value)" class="flex-1 border border-slate-200 rounded p-1">
+                    <button onclick="removeStageItem('stage1', ${idx})" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+
+            <div class="border border-sky-200 p-4 rounded-xl bg-sky-50/30">
+              <div class="flex justify-between items-center mb-3">
+                <h4 class="text-xs font-bold text-sky-900 uppercase">Giai Đoạn 2: Hoàn Thiện Cáp Quang & Nghiệm Thu</h4>
+                <button onclick="addNewItemToStage('stage2')" class="text-xs bg-sky-600 hover:bg-sky-700 text-white font-semibold px-2.5 py-1 rounded">
+                  <i class="fa-solid fa-plus mr-1"></i>Thêm việc GĐ2
+                </button>
+              </div>
+              <div class="space-y-2">
+                ${appData.stage2Template.map((item, idx) => `
+                  <div class="flex items-center space-x-2 bg-white p-2 rounded border border-sky-100 text-xs">
+                    <input type="text" value="${item.code}" onchange="updateStageItem('stage2', ${idx}, 'code', this.value)" class="w-16 font-bold text-center border border-slate-200 rounded p-1">
+                    <input type="text" value="${item.name}" onchange="updateStageItem('stage2', ${idx}, 'name', this.value)" class="flex-1 border border-slate-200 rounded p-1">
+                    <button onclick="removeStageItem('stage2', ${idx})" class="text-rose-600 hover:bg-rose-50 p-1.5 rounded"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 border-t border-slate-100 pt-4 flex justify-end">
+            <button onclick="saveStageEdits()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-lg text-xs transition shadow-sm">
+              <i class="fa-solid fa-floppy-disk mr-1"></i>Áp Dụng Cho Toàn Hệ Thống
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateStageItem(stageKey, idx, field, val) {
+      if (stageKey === 'stage1') appData.stage1Template[idx][field] = val;
+      else appData.stage2Template[idx][field] = val;
+    }
+
+    function addNewItemToStage(stageKey) {
+      if (stageKey === 'stage1') {
+        const nextCode = "I." + (appData.stage1Template.length + 1);
+        appData.stage1Template.push({ code: nextCode, name: "Hạng mục công việc mới", default: 100 });
+      } else {
+        const nextCode = "II." + (appData.stage2Template.length + 1);
+        appData.stage2Template.push({ code: nextCode, name: "Hạng mục hoàn thiện mới", default: 0 });
+      }
+      openEditStagesModal();
+    }
+
+    function removeStageItem(stageKey, idx) {
+      if (confirm("Bạn có chắc muốn xóa hạng mục này?")) {
+        if (stageKey === 'stage1') appData.stage1Template.splice(idx, 1);
+        else appData.stage2Template.splice(idx, 1);
+        openEditStagesModal();
+      }
+    }
+
+    function saveStageEdits() {
+      saveAllData(false);
+      alert("Đã lưu các thay đổi nội dung giai đoạn thành công!");
+      closeModal();
+      renderMain();
+    }
+
+    function closeModal() {
+      document.getElementById("modal-container").classList.add("hidden");
+    }
+
+    // ==========================================
+    // TÍNH NĂNG XUẤT BẢN: ZALO, WORD (.DOC), IN A4
+    // ==========================================
+    function copyZaloSummary() {
+      const dayRep = appData.reports[selectedDate];
+      let msg = `*BÁO CÁO TIẾN ĐỘ THI CÔNG NGÀY ${selectedDate} - DỰ ÁN CP*\n`;
+      msg += `Đơn vị: VENTECH (VENUS NETWORKS TECHNOLOGY)\n\n`;
+
+      appData.sites.forEach(site => {
+        const rep = dayRep[site.id];
+        const stg = rep.stagesEnabled || { stage1: true, stage2: true };
+        const s1Avg = calculateSiteAvgStage1(rep);
+        const s2Avg = calculateSiteAvgStage2(rep);
+        
+        let progressStr = [];
+        if (stg.stage1 !== false) progressStr.push(`GĐ1: ${s1Avg}%`);
+        if (stg.stage2 !== false) progressStr.push(`GĐ2: ${s2Avg}%`);
+
+        msg += `📍 *${site.name}*:\n`;
+        msg += `  • Tiến độ: ${progressStr.length ? progressStr.join(" | ") : "Chưa kích hoạt"}\n`;
+        msg += `  • Ảnh: ${rep.images ? rep.images.length : 0} ảnh đính kèm\n`;
+      });
+
+      msg += `\n👉 Ghi chú: Quy trình cách ly bảo đảm, kiểm tra đấu nối đúng tiêu chuẩn C.P.`;
+
+      navigator.clipboard.writeText(msg).then(() => {
+        alert("Đã sao chép nội dung báo cáo! Bạn có thể dán (Paste) ngay vào nhóm chat Zalo.");
+      }).catch(() => prompt("Sao chép thủ công nội dung dưới đây:", msg));
+    }
+
+    function exportWordReport() {
+      const dayRep = appData.reports[selectedDate];
+      let content = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+          <meta charset='utf-8'>
+          <title>Bao Cao Tien Do Ventech ${selectedDate}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; font-size: 13pt; line-height: 1.3; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
+            th, td { border: 1px solid #000; padding: 6px; font-size: 11pt; }
+            th { background-color: #f2f2f2; text-align: center; }
+            h2, h3, h4 { margin-top: 15px; margin-bottom: 5px; text-decoration: none !important; border-bottom: none !important; }
+            .img-cell { text-align: center; vertical-align: top; padding: 5px; width: 50%; border: 1px solid #ccc; }
+            .img-caption { font-size: 10pt; font-style: italic; margin-top: 4px; }
+          </style>
+        </head>
+        <body>
+          <table style="border: none; margin-bottom: 20px;">
+            <tr style="border: none;">
+              <td style="border: none; width: 40%; vertical-align: middle;">
+                <img src="${VENTECH_LOGO_BASE64}" width="220" alt="Ventech Logo">
+              </td>
+              <td style="border: none; text-align: right; vertical-align: middle;">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br>
+                Độc lập - Tự do - Hạnh phúc<br>
+                <em>Ngày ${selectedDate.split("-").reverse().join(" tháng ")} năm ${selectedDate.split("-")[0]}</em>
+              </td>
+            </tr>
+          </table>
+
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 16pt;">BÁO CÁO TIẾN ĐỘ HIỆN TRƯỜNG CÁC TRẠI MIỀN TRUNG</h2>
+            <div style="font-size: 12pt; margin-top: 4px;">Dự án: C.P | Đơn vị thi công: VENTECH</div>
+          </div>
+
+          <h3>1. HẠNG MỤC TRIỂN KHAI CHÍNH</h3>
+          <ul>
+            <li>Tiến hành tập kết nhân sự và thực hiện quy trình cách ly 24h - 48h.</li>
+            <li>Bàn giao và nhập vật tư, cáp quang vào trại.</li>
+            <li>Dựng trụ đỡ cáp quang cho các vị trí chính theo quy cách tiêu chuẩn của C.P.</li>
+            <li>Treo ống cứng PVC, luồn cáp mạng Cat6 vào ống, kéo cáp quang chính.</li>
+            <li>Hàn quang, đấu nối chính thức tủ Rack trung tâm và tủ EB.</li>
+            <li>Cấu hình hệ thống và lên hình camera giám sát.</li>
+          </ul>
+
+          <h3>2. BẢNG THEO DÕI TIẾN ĐỘ CHI TIẾT CÁC SITE</h3>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 8%;">STT</th>
+                <th>Nội Dung Công Việc Thực Hiện</th>
+                <th style="width: 15%;">Tỷ Lệ (%)</th>
+                <th style="width: 30%;">Ghi Chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${appData.sites.map(site => {
+                const rep = dayRep[site.id];
+                const stg = rep.stagesEnabled || { stage1: true, stage2: true };
+                let rows = `
+                  <tr style="background-color: #e6f0fa; font-weight: bold;">
+                    <td style="text-align: center;">${site.code}</td>
+                    <td colspan="3">${site.name}</td>
+                  </tr>
+                `;
+
+                if (stg.stage1 !== false) {
+                  rows += `
+                    <tr style="background-color: #f8fafc; font-weight: bold; font-style: italic;">
+                      <td style="text-align: center;">GĐ 1</td>
+                      <td colspan="3">Lắp đặt thiết bị và hạ tầng cơ bản</td>
+                    </tr>
+                    ${appData.stage1Template.map(item => `
+                      <tr>
+                        <td style="text-align: center;">${item.code}</td>
+                        <td>${item.name}</td>
+                        <td style="text-align: center; font-weight: bold;">${rep.stage1[item.code] !== undefined ? rep.stage1[item.code] : 100}%</td>
+                        <td>Đạt tiêu chuẩn C.P</td>
+                      </tr>
+                    `).join("")}
+                  `;
+                }
+
+                if (stg.stage2 !== false) {
+                  rows += `
+                    <tr style="background-color: #f8fafc; font-weight: bold; font-style: italic;">
+                      <td style="text-align: center;">GĐ 2</td>
+                      <td colspan="3">Hoàn thiện cáp quang & nghiệm thu</td>
+                    </tr>
+                    ${appData.stage2Template.map(item => `
+                      <tr>
+                        <td style="text-align: center;">${item.code}</td>
+                        <td>${item.name}</td>
+                        <td style="text-align: center; font-weight: bold;">${rep.stage2[item.code] !== undefined ? rep.stage2[item.code] : 0}%</td>
+                        <td>Theo đúng quy cách C.P</td>
+                      </tr>
+                    `).join("")}
+                  `;
+                }
+
+                return rows;
+              }).join("")}
+            </tbody>
+          </table>
+
+          <h3>3. HÌNH ẢNH HIỆN TRƯỜNG THỰC TẾ</h3>
+          ${appData.sites.map(site => {
+            const imgs = dayRep[site.id].images || [];
+            if (!imgs.length) return "";
+            let imgRows = "";
+            for (let i = 0; i < imgs.length; i += 2) {
+              const img1 = imgs[i];
+              const img2 = imgs[i + 1];
+              imgRows += `
+                <tr>
+                  <td class="img-cell">
+                    <img src="${img1.src}" width="300" height="380" style="object-fit: cover;"><br>
+                    <div class="img-caption">${img1.caption}</div>
+                  </td>
+                  <td class="img-cell">
+                    ${img2 ? `
+                      <img src="${img2.src}" width="300" height="380" style="object-fit: cover;"><br>
+                      <div class="img-caption">${img2.caption}</div>
+                    ` : ''}
+                  </td>
+                </tr>
+              `;
+            }
+            return `
+              <h4>Site: ${site.name}</h4>
+              <table style="border: none;">${imgRows}</table>
+            `;
+          }).join("")}
+
+          <h3>4. KHÓ KHĂN - RỦI RO - HƯỚNG GIẢI QUYẾT</h3>
+          <ul>
+            <li>Quy trình khử khuẩn và cách ly tại trại mất từ 24h - 48h trước khi được vào khu nuôi.</li>
+            <li>Khoảng cách địa lý di chuyển giữa các trại tại Gia Lai tương đối xa.</li>
+            <li>Thời tiết mưa chiều ảnh hưởng đến việc căng cáp trên trụ bê tông cao.</li>
+          </ul>
+
+          <h3>5. CÔNG VIỆC DỰ KIẾN KẾ TIẾP</h3>
+          <ul>
+            <li>Tiếp tục thi công kéo cáp quang và căng cáp chịu lực các tuyến còn lại.</li>
+            <li>Đấu nối hộp phối quang ODF, bấm đầu dây và hoàn thiện tủ EB.</li>
+            <li>Kiểm tra lên hình camera toàn tuyến chuẩn bị nghiệm thu nội bộ.</li>
+          </ul>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Bao_Cao_Tien_Do_Ventech_CP_${selectedDate}.doc`;
+      a.click();
+    }
+
+    function triggerPrintPDF() {
+      const printable = document.getElementById("printable-report");
+      printable.innerHTML = `
+        <div style="font-family: 'Times New Roman', serif;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px;">
+            <img src="${VENTECH_LOGO_BASE64}" style="height: 50px;">
+            <div style="text-align: right; font-size: 11pt;">
+              <strong>BÁO CÁO TIẾN ĐỘ THI CÔNG HIỆN TRƯỜNG</strong><br>
+              Ngày: ${selectedDate} | Dự án CP
+            </div>
+          </div>
+          <h2 style="text-align: center; margin: 15px 0;">BÁO CÁO TIẾN ĐỘ HIỆN TRƯỜNG CÁC TRẠI MIỀN TRUNG</h2>
+          <p><em>(Xem chi tiết toàn bộ bảng % tiến độ và hình ảnh trong file Word xuất bản đính kèm).</em></p>
+        </div>
+      `;
+      window.print();
+    }
+  </script>
+</body>
+</html>
