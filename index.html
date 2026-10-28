@@ -12,6 +12,21 @@
   <meta name="apple-mobile-web-app-title" content="Ventech CP">
   <meta name="theme-color" content="#0284c7">
   
+  <!-- LIÊN KẾT TĨNH MANIFEST & APPLE TOUCH ICON CHUẨN BUILD APP -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3246/3246738.png">
+
+  <!-- ĐĂNG KÝ SERVICE WORKER CHẠY OFFLINE CHO PWABUILDER -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('ServiceWorker registered:', reg.scope))
+          .catch(err => console.warn('ServiceWorker registration failed:', err));
+      });
+    }
+  </script>
+
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -36,7 +51,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans pb-16">
 
-  <!-- FIREBASE CONFIG & TỰ SINH ICON/LOGO/PWA MANIFEST -->
+  <!-- FIREBASE CONFIG & TỰ SINH LOGO VENTECH -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB3hvtNC84KNTUWNP5YON4jvQqRWJwqXBU",
@@ -58,7 +73,6 @@
     }
 
     let VENTECH_LOGO_BASE64 = "";
-    let VENTECH_ICON_BASE64 = "";
 
     function generateVentechAssets() {
       const canvas = document.createElement("canvas");
@@ -95,48 +109,6 @@
       ctx.fillText("venus networks technology", 108, 86);
 
       VENTECH_LOGO_BASE64 = canvas.toDataURL("image/png");
-
-      const iconCanvas = document.createElement("canvas");
-      iconCanvas.width = 192; iconCanvas.height = 192;
-      const ictx = iconCanvas.getContext("2d");
-      ictx.fillStyle = "#0284c7";
-      ictx.fillRect(0, 0, 192, 192);
-
-      ictx.fillStyle = "#ffffff";
-      ictx.font = "bold 96px Arial, sans-serif";
-      ictx.textAlign = "center";
-      ictx.textBaseline = "middle";
-      ictx.fillText("V", 96, 90);
-
-      ictx.fillStyle = "#dc2626";
-      ictx.fillRect(36, 145, 120, 8);
-
-      VENTECH_ICON_BASE64 = iconCanvas.toDataURL("image/png");
-
-      const appleIconLink = document.createElement("link");
-      appleIconLink.rel = "apple-touch-icon";
-      appleIconLink.href = VENTECH_ICON_BASE64;
-      document.head.appendChild(appleIconLink);
-
-      const manifestObj = {
-        name: "VENTECH - Báo Cáo Tiến Độ CP",
-        short_name: "Ventech CP",
-        start_url: window.location.href,
-        display: "standalone",
-        background_color: "#0284c7",
-        theme_color: "#0284c7",
-        icons: [{
-          src: VENTECH_ICON_BASE64,
-          sizes: "192x192",
-          type: "image/png"
-        }]
-      };
-      const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: "application/json" });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
-      const manifestLink = document.createElement("link");
-      manifestLink.rel = "manifest";
-      manifestLink.href = manifestUrl;
-      document.head.appendChild(manifestLink);
     }
     generateVentechAssets();
   </script>
@@ -159,7 +131,7 @@
   <div id="pwa-install-banner" class="bg-gradient-to-r from-sky-600 to-indigo-700 text-white px-4 py-2 text-xs flex items-center justify-between shadow-sm no-print">
     <div class="flex items-center space-x-2">
       <i class="fa-solid fa-mobile-screen-button text-base"></i>
-      <span>Cài đặt ứng dụng lên <strong>Màn hình chính điện thoại (Android / iOS)</strong> để truy cập hằng ngày!</span>
+      <span>Cài đặt ứng dụng lên <strong>Màn hình chính điện thoại (Android / iOS)</strong> hoặc tải app (.apk / .exe)!</span>
     </div>
     <button onclick="showInstallInstructions()" class="bg-white text-sky-800 font-bold px-3 py-1 rounded shadow-sm hover:bg-sky-50 transition text-[11px]">
       <i class="fa-solid fa-download mr-1"></i>Xem Hướng Dẫn Thêm
@@ -217,7 +189,7 @@
       { u: "navifarm", p: "123456", role: "site", siteId: "navifarm", name: "Site NaviFarm" }
     ];
 
-    // CHỈ LƯU PHIÊN ĐĂNG NHẬP TRÊN SESSIONSTORAGE (THOÁT TRÌNH DUYỆT TỰ ĐĂNG XUẤT)
+    // DÙNG SESSIONSTORAGE ĐỂ TỰ ĐĂNG XUẤT KHI TẮT TRÌNH DUYỆT
     let currentUser = JSON.parse(sessionStorage.getItem("ventech_user")) || null;
     let selectedDate = new Date().toISOString().split("T")[0];
     let inspectingSiteId = null;
@@ -225,7 +197,6 @@
     let siteSearchKeyword = "";
     let siteFilterStatus = "all";
 
-    // Từ khóa tìm kiếm riêng trong 2 Modal
     let modalSiteSearchKeyword = "";
     let modalUserSearchKeyword = "";
 
@@ -475,7 +446,6 @@
       }
     }
 
-    // DASHBOARD CHỈ HUY TRƯỞNG & ADMIN SITE
     function renderAdminDashboard(container) {
       ensureDayReport(selectedDate);
       const dayRep = appData.reports[selectedDate];
@@ -559,7 +529,7 @@
             </div>
           </div>
 
-          <!-- KHUNG TÌM KIẾM VÀ BỘ LỌC TRẠI TRÊN DASHBOARD -->
+          <!-- KHUNG TÌM KIẾM TRÊN DASHBOARD -->
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div class="relative flex-1 max-w-lg">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -701,6 +671,7 @@
               </span>
             </div>
 
+            <!-- BẬT TẮT GIAI ĐOẠN -->
             <div class="flex items-center justify-between bg-slate-50 p-2 rounded-lg mb-3 text-xs">
               <span class="font-bold text-slate-600">Giai đoạn kích hoạt:</span>
               <div class="flex items-center space-x-2">
@@ -1340,7 +1311,6 @@
 
       const editingSite = editIdx !== null ? appData.sites[editIdx] : null;
 
-      // Lọc danh sách site theo từ khóa tìm kiếm trong modal
       let filteredSitesList = appData.sites.map((s, idx) => ({ ...s, originalIdx: idx }));
       if (modalSiteSearchKeyword.trim()) {
         const kw = removeVietnameseTones(modalSiteSearchKeyword.trim().toLowerCase());
@@ -1404,11 +1374,10 @@
             </div>
           </div>
 
-          <!-- DANH SÁCH TRẠI CÓ THANH TÌM KIẾM RIÊNG -->
+          <!-- DANH SÁCH TRẠI -->
           <div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <h4 class="text-xs font-bold text-slate-700 uppercase">Danh Sách Trại Đang Quản Lý (${appData.sites.length})</h4>
-              <!-- Ô TÌM KIẾM TRONG BẢNG TRẠI -->
               <div class="relative w-full sm:w-64">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 text-xs">
                   <i class="fa-solid fa-magnifying-glass"></i>
@@ -1559,7 +1528,6 @@
 
       const editingUser = editIdx !== null ? appData.users[editIdx] : null;
 
-      // Lọc danh sách tài khoản theo từ khóa tìm kiếm
       let filteredUsersList = appData.users.map((u, idx) => ({ ...u, originalIdx: idx }));
       if (modalUserSearchKeyword.trim()) {
         const kw = removeVietnameseTones(modalUserSearchKeyword.trim().toLowerCase());
@@ -1630,19 +1598,17 @@
             </div>
           </div>
 
-          <!-- DANH SÁCH TÀI KHOẢN KÈM TÌM KIẾM VÀ NÚT XUẤT EXCEL -->
+          <!-- DANH SÁCH TÀI KHOẢN -->
           <div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <div class="flex items-center space-x-2">
                 <h4 class="text-xs font-bold text-slate-700 uppercase">Danh Sách Tài Khoản (${appData.users.length})</h4>
-                <!-- NÚT XUẤT EXCEL TÀI KHOẢN -->
                 <button onclick="exportAccountsToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-[11px] shadow-sm transition flex items-center space-x-1">
                   <i class="fa-solid fa-file-excel"></i>
                   <span>Xuất File Excel</span>
                 </button>
               </div>
 
-              <!-- Ô TÌM KIẾM TÀI KHOẢN -->
               <div class="relative w-full sm:w-60">
                 <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 text-xs">
                   <i class="fa-solid fa-magnifying-glass"></i>
@@ -1705,7 +1671,6 @@
       openManageUsersModal();
     }
 
-    // TÍNH NĂNG XUẤT TOÀN BỘ TÀI KHOẢN RA FILE EXCEL (CSV UTF-8)
     function exportAccountsToExcel() {
       if (!appData.users || !appData.users.length) {
         return alert("Không có dữ liệu tài khoản để xuất file!");
@@ -1724,7 +1689,6 @@
         csv += `${stt},${name},${username},${password},${role},${scope}\r\n`;
       });
 
-      // Tạo Blob có BOM UTF-8 (\ufeff) để Excel mở tiếng Việt không bị lỗi font
       const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
