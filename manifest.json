@@ -1,24 +1,28 @@
 {
-  "name": "VENTECH - Báo Cáo Tiến Độ CP",
-  "short_name": "Ventech CP",
-  "start_url": "./index.html",
+  "background_color": "#ffffff",
+  "dir": "ltr",
   "display": "standalone",
-  "background_color": "#0284c7",
-  "theme_color": "#0284c7",
-  "description": "Hệ thống báo cáo tiến độ thi công giám sát camera và cáp quang các trại miền Trung",
+  "name": "VENTECH - Báo Cáo Tiến Độ CP",
   "orientation": "any",
+  "scope": "/",
+  "short_name": "Ventech CP",
+  "start_url": "/",
+  "theme_color": "#0284c7",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3246/3246738.png",
-      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/3246/3246738.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "isSquare": true,
+      "isPng": true,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 512,
+      "is512x512": true,
+      "is256x256": false,
+      "is192x192": false
     }
-  ]
+  ],
+  "id": "ventechcp",
+  "description": "Hệ thống báo cáo tiến độ thi công hiện trường Ventech CP"
 }
