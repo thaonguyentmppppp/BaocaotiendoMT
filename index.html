@@ -36,7 +36,7 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans pb-16">
 
-  <!-- FIREBASE CONFIG & TỰ SINH ICON/LOGO/PWA MANIFEST CHUẨN ĐIỆN THOẠI -->
+  <!-- FIREBASE CONFIG & TỰ SINH ICON/LOGO/PWA MANIFEST -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB3hvtNC84KNTUWNP5YON4jvQqRWJwqXBU",
@@ -61,7 +61,6 @@
     let VENTECH_ICON_BASE64 = "";
 
     function generateVentechAssets() {
-      // 1. Sinh Logo ngang
       const canvas = document.createElement("canvas");
       canvas.width = 400; canvas.height = 100;
       const ctx = canvas.getContext("2d");
@@ -97,14 +96,12 @@
 
       VENTECH_LOGO_BASE64 = canvas.toDataURL("image/png");
 
-      // 2. Sinh App Icon hình vuông (Dành cho iOS & Android Icon)
       const iconCanvas = document.createElement("canvas");
       iconCanvas.width = 192; iconCanvas.height = 192;
       const ictx = iconCanvas.getContext("2d");
       ictx.fillStyle = "#0284c7";
       ictx.fillRect(0, 0, 192, 192);
 
-      // Chữ Ventech V viết tắt phong cách hiện trường
       ictx.fillStyle = "#ffffff";
       ictx.font = "bold 96px Arial, sans-serif";
       ictx.textAlign = "center";
@@ -116,13 +113,11 @@
 
       VENTECH_ICON_BASE64 = iconCanvas.toDataURL("image/png");
 
-      // Gắn Apple Touch Icon cho Safari iPhone
       const appleIconLink = document.createElement("link");
       appleIconLink.rel = "apple-touch-icon";
       appleIconLink.href = VENTECH_ICON_BASE64;
       document.head.appendChild(appleIconLink);
 
-      // Tạo PWA Web App Manifest trực tiếp qua Blob
       const manifestObj = {
         name: "VENTECH - Báo Cáo Tiến Độ CP",
         short_name: "Ventech CP",
@@ -160,11 +155,11 @@
     </div>
   </header>
 
-  <!-- BANNER CÀI ĐẶT APP CHO ĐIỆN THOẠI (ANDROID / IOS) -->
+  <!-- BANNER CÀI ĐẶT APP CHO ĐIỆN THOẠI -->
   <div id="pwa-install-banner" class="bg-gradient-to-r from-sky-600 to-indigo-700 text-white px-4 py-2 text-xs flex items-center justify-between shadow-sm no-print">
     <div class="flex items-center space-x-2">
       <i class="fa-solid fa-mobile-screen-button text-base"></i>
-      <span>Cài đặt ứng dụng lên <strong>Màn hình chính điện thoại (Android / iOS)</strong> để dùng nhanh hằng ngày!</span>
+      <span>Cài đặt ứng dụng lên <strong>Màn hình chính điện thoại (Android / iOS)</strong> để truy cập hằng ngày!</span>
     </div>
     <button onclick="showInstallInstructions()" class="bg-white text-sky-800 font-bold px-3 py-1 rounded shadow-sm hover:bg-sky-50 transition text-[11px]">
       <i class="fa-solid fa-download mr-1"></i>Xem Hướng Dẫn Thêm
@@ -177,7 +172,7 @@
   <!-- KHU VỰC IN BÁO CÁO A4 -->
   <div id="printable-report" class="hidden font-serif"></div>
 
-  <!-- MODAL CONTAINER (DÙNG CHO TÀI KHOẢN, SỬA PROFILE, TẠO/SỬA SITE, GIAI ĐOẠN, HƯỚNG DẪN CÀI APP) -->
+  <!-- MODAL CONTAINER -->
   <div id="modal-container" class="fixed inset-0 z-50 bg-black/50 hidden flex items-center justify-center p-4"></div>
 
   <!-- SCRIPT LOGIC TOÀN BỘ HỆ THỐNG -->
@@ -222,12 +217,17 @@
       { u: "navifarm", p: "123456", role: "site", siteId: "navifarm", name: "Site NaviFarm" }
     ];
 
-    let currentUser = JSON.parse(localStorage.getItem("ventech_user")) || null;
+    // CHỈ LƯU PHIÊN ĐĂNG NHẬP TRÊN SESSIONSTORAGE (THOÁT TRÌNH DUYỆT TỰ ĐĂNG XUẤT)
+    let currentUser = JSON.parse(sessionStorage.getItem("ventech_user")) || null;
     let selectedDate = new Date().toISOString().split("T")[0];
     let inspectingSiteId = null;
 
     let siteSearchKeyword = "";
-    let siteFilterStatus = "all"; // all, submitted, pending
+    let siteFilterStatus = "all";
+
+    // Từ khóa tìm kiếm riêng trong 2 Modal
+    let modalSiteSearchKeyword = "";
+    let modalUserSearchKeyword = "";
 
     let appData = JSON.parse(localStorage.getItem("ventech_db")) || {
       sites: DEFAULT_SITES,
@@ -337,7 +337,7 @@
               const me = appData.users.find(x => x.u === currentUser.u);
               if (me) {
                 currentUser = { ...me };
-                localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+                sessionStorage.setItem("ventech_user", JSON.stringify(currentUser));
                 renderAuthInfo();
               }
             }
@@ -365,7 +365,6 @@
       renderMain();
     });
 
-    // CHỈ CHO PHÉP SUPER ADMIN MỞ MODAL SỬA TÀI KHOẢN
     function renderAuthInfo() {
       const box = document.getElementById("auth-info");
       if (!currentUser) {
@@ -408,6 +407,7 @@
     function handleLogout() {
       currentUser = null;
       inspectingSiteId = null;
+      sessionStorage.removeItem("ventech_user");
       localStorage.removeItem("ventech_user");
       renderAuthInfo();
       renderMain();
@@ -466,7 +466,7 @@
       const foundUser = appData.users.find(x => (x.u.toLowerCase() === u || (x.code && x.code.toLowerCase() === u)) && x.p === p);
       if (foundUser) {
         currentUser = { ...foundUser };
-        localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+        sessionStorage.setItem("ventech_user", JSON.stringify(currentUser));
         inspectingSiteId = null;
         renderAuthInfo();
         renderMain();
@@ -559,7 +559,7 @@
             </div>
           </div>
 
-          <!-- KHUNG TÌM KIẾM VÀ BỘ LỌC TRẠI -->
+          <!-- KHUNG TÌM KIẾM VÀ BỘ LỌC TRẠI TRÊN DASHBOARD -->
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div class="relative flex-1 max-w-lg">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -701,7 +701,6 @@
               </span>
             </div>
 
-            <!-- BẬT TẮT GIAI ĐOẠN -->
             <div class="flex items-center justify-between bg-slate-50 p-2 rounded-lg mb-3 text-xs">
               <span class="font-bold text-slate-600">Giai đoạn kích hoạt:</span>
               <div class="flex items-center space-x-2">
@@ -1271,7 +1270,7 @@
       currentUser.name = newName;
       currentUser.u = newU;
       currentUser.p = newP;
-      localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+      sessionStorage.setItem("ventech_user", JSON.stringify(currentUser));
 
       saveAllData(false);
       closeModal();
@@ -1297,29 +1296,27 @@
           </div>
 
           <div class="space-y-4 text-xs text-slate-700">
-            <!-- HƯỚNG DẪN ANDROID -->
             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
               <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center text-emerald-700">
                 <i class="fa-brands fa-android text-base mr-1.5"></i>1. Dành cho điện thoại Android (Chrome / Cốc Cốc):
               </h4>
               <ol class="list-decimal list-inside space-y-1 text-slate-600 pl-1 leading-relaxed">
-                <li>Mở liên kết web này bằng trình duyệt <strong>Google Chrome</strong>.</li>
+                <li>Mở liên kết web bằng trình duyệt <strong>Google Chrome</strong>.</li>
                 <li>Bấm vào biểu tượng <strong>3 dấu chấm (⋮)</strong> ở góc trên bên phải màn hình.</li>
                 <li>Chọn mục <strong>"Thêm vào Màn hình chính"</strong> (hoặc <em>"Cài đặt ứng dụng"</em>).</li>
-                <li>Bấm <strong>Thêm</strong>. Biểu tượng App Ventech sẽ xuất hiện ngay trên màn hình nền điện thoại như 1 ứng dụng thật!</li>
+                <li>Bấm <strong>Thêm</strong>. Biểu tượng App Ventech sẽ xuất hiện ngay trên màn hình nền điện thoại!</li>
               </ol>
             </div>
 
-            <!-- HƯỚNG DẪN IPHONE (IOS) -->
             <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
               <h4 class="font-bold text-slate-800 text-xs mb-2 flex items-center text-sky-700">
                 <i class="fa-brands fa-apple text-base mr-1.5"></i>2. Dành cho iPhone / iPad (Trình duyệt Safari):
               </h4>
               <ol class="list-decimal list-inside space-y-1 text-slate-600 pl-1 leading-relaxed">
-                <li>Mở liên kết web này bằng trình duyệt <strong>Safari</strong> trên iPhone.</li>
-                <li>Bấm vào biểu tượng nút <strong>Chia sẻ (hình vuông có mũi tên trỏ lên <i class="fa-solid fa-arrow-up-from-bracket"></i>)</strong> ở thanh dưới cùng.</li>
-                <li>Cuộn xuống và chọn mục <strong>"Thêm vào MH chính"</strong> (<em>Add to Home Screen</em>).</li>
-                <li>Bấm <strong>Thêm</strong> ở góc trên bên phải. Xong! Bạn có thể mở app trực tiếp từ màn hình iPhone mà không cần nhập lại link.</li>
+                <li>Mở liên kết web bằng trình duyệt <strong>Safari</strong> trên iPhone.</li>
+                <li>Bấm vào nút <strong>Chia sẻ (hình vuông có mũi tên trỏ lên <i class="fa-solid fa-arrow-up-from-bracket"></i>)</strong> ở thanh dưới cùng.</li>
+                <li>Cuộn xuống chọn mục <strong>"Thêm vào MH chính"</strong> (<em>Add to Home Screen</em>).</li>
+                <li>Bấm <strong>Thêm</strong> ở góc trên bên phải để hoàn tất.</li>
               </ol>
             </div>
           </div>
@@ -1334,7 +1331,7 @@
     }
 
     // ========================================================
-    // MODAL SUPER ADMIN 1: QUẢN LÝ, TẠO & SỬA SITE
+    // MODAL SUPER ADMIN 1: QUẢN LÝ, TẠO, SỬA SITE & TÌM KIẾM SITE
     // ========================================================
     function openManageSitesModal(editIdx = null) {
       if (!currentUser || currentUser.role !== "superadmin") return;
@@ -1342,6 +1339,19 @@
       modal.classList.remove("hidden");
 
       const editingSite = editIdx !== null ? appData.sites[editIdx] : null;
+
+      // Lọc danh sách site theo từ khóa tìm kiếm trong modal
+      let filteredSitesList = appData.sites.map((s, idx) => ({ ...s, originalIdx: idx }));
+      if (modalSiteSearchKeyword.trim()) {
+        const kw = removeVietnameseTones(modalSiteSearchKeyword.trim().toLowerCase());
+        filteredSitesList = filteredSitesList.filter(s => {
+          const matchName = removeVietnameseTones((s.name || "").toLowerCase()).includes(kw);
+          const matchCode = (s.code || "").toString().toLowerCase().includes(kw);
+          const matchTech = removeVietnameseTones((s.tech || "").toLowerCase()).includes(kw);
+          const matchId = (s.id || "").toLowerCase().includes(kw);
+          return matchName || matchCode || matchTech || matchId;
+        });
+      }
 
       modal.innerHTML = `
         <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
@@ -1394,32 +1404,67 @@
             </div>
           </div>
 
+          <!-- DANH SÁCH TRẠI CÓ THANH TÌM KIẾM RIÊNG -->
           <div>
-            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh Sách Trại Đang Quản Lý (${appData.sites.length})</h4>
-            <div class="space-y-2">
-              ${appData.sites.map((s, idx) => `
-                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
-                  <div>
-                    <span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-[11px]">#SITE ${s.code}</span>
-                    <strong class="ml-1 text-slate-800">${s.name}</strong>
-                    <div class="text-[11px] text-slate-500 mt-0.5">
-                      Phụ trách: <strong>${s.tech}</strong> (${s.phone || 'N/A'}) | User: <span class="font-mono bg-slate-100 px-1 rounded">${s.id}</span> | MK: <span class="font-mono bg-slate-100 px-1 rounded">${getSitePass(s.id)}</span>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <h4 class="text-xs font-bold text-slate-700 uppercase">Danh Sách Trại Đang Quản Lý (${appData.sites.length})</h4>
+              <!-- Ô TÌM KIẾM TRONG BẢNG TRẠI -->
+              <div class="relative w-full sm:w-64">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 text-xs">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="modal-site-search-input" value="${modalSiteSearchKeyword}" oninput="handleModalSiteSearch(this.value)" placeholder="Tìm mã, tên trại, kỹ thuật..." class="w-full text-xs pl-8 pr-7 py-1.5 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-emerald-500">
+                ${modalSiteSearchKeyword ? `
+                  <button onclick="clearModalSiteSearch()" class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600 text-xs">&times;</button>
+                ` : ''}
+              </div>
+            </div>
+
+            ${filteredSitesList.length === 0 ? `
+              <div class="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                Không tìm thấy trại nào khớp với từ khóa "${modalSiteSearchKeyword}"
+              </div>
+            ` : `
+              <div class="space-y-2">
+                ${filteredSitesList.map(s => `
+                  <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
+                    <div>
+                      <span class="bg-sky-100 text-sky-800 font-bold px-1.5 py-0.5 rounded text-[11px]">#SITE ${s.code}</span>
+                      <strong class="ml-1 text-slate-800">${s.name}</strong>
+                      <div class="text-[11px] text-slate-500 mt-0.5">
+                        Phụ trách: <strong>${s.tech}</strong> (${s.phone || 'N/A'}) | User: <span class="font-mono bg-slate-100 px-1 rounded">${s.id}</span> | MK: <span class="font-mono bg-slate-100 px-1 rounded font-bold">${getSitePass(s.id)}</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                      <button onclick="openManageSitesModal(${s.originalIdx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
+                      </button>
+                      <button onclick="deleteSite(${s.originalIdx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
+                        <i class="fa-solid fa-trash mr-1"></i>Xóa
+                      </button>
                     </div>
                   </div>
-                  <div class="flex items-center space-x-1.5">
-                    <button onclick="openManageSitesModal(${idx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
-                      <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
-                    </button>
-                    <button onclick="deleteSite(${idx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
-                      <i class="fa-solid fa-trash mr-1"></i>Xóa
-                    </button>
-                  </div>
-                </div>
-              `).join("")}
-            </div>
+                `).join("")}
+              </div>
+            `}
           </div>
         </div>
       `;
+    }
+
+    function handleModalSiteSearch(val) {
+      modalSiteSearchKeyword = val;
+      openManageSitesModal();
+      const input = document.getElementById("modal-site-search-input");
+      if (input) {
+        input.focus();
+        input.setSelectionRange(val.length, val.length);
+      }
+    }
+
+    function clearModalSiteSearch() {
+      modalSiteSearchKeyword = "";
+      openManageSitesModal();
     }
 
     function getSitePass(siteId) {
@@ -1505,7 +1550,7 @@
     }
 
     // ========================================================
-    // MODAL SUPER ADMIN 2: QUẢN LÝ, TẠO & SỬA TÀI KHOẢN ADMIN
+    // MODAL SUPER ADMIN 2: TÌM KIẾM TÀI KHOẢN & XUẤT EXCEL
     // ========================================================
     function openManageUsersModal(editIdx = null) {
       if (!currentUser || currentUser.role !== "superadmin") return;
@@ -1514,6 +1559,19 @@
 
       const editingUser = editIdx !== null ? appData.users[editIdx] : null;
 
+      // Lọc danh sách tài khoản theo từ khóa tìm kiếm
+      let filteredUsersList = appData.users.map((u, idx) => ({ ...u, originalIdx: idx }));
+      if (modalUserSearchKeyword.trim()) {
+        const kw = removeVietnameseTones(modalUserSearchKeyword.trim().toLowerCase());
+        filteredUsersList = filteredUsersList.filter(u => {
+          const matchName = removeVietnameseTones((u.name || "").toLowerCase()).includes(kw);
+          const matchU = (u.u || "").toLowerCase().includes(kw);
+          const matchRole = (u.role || "").toLowerCase().includes(kw);
+          const matchSites = (u.allowedSites ? u.allowedSites.join(" ") : (u.siteId || "")).toLowerCase().includes(kw);
+          return matchName || matchU || matchRole || matchSites;
+        });
+      }
+
       modal.innerHTML = `
         <div class="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto custom-scroll">
           <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -1521,7 +1579,7 @@
               <h3 class="font-bold text-slate-800 text-base flex items-center">
                 <i class="fa-solid fa-users-gear text-rose-600 mr-2"></i>${editingUser ? 'Chỉnh Sửa Tài Khoản: ' + editingUser.name : 'Quản Lý & Phân Quyền Tài Khoản'}
               </h3>
-              <p class="text-xs text-slate-500">Super Admin có toàn quyền tạo mới, phân quyền site, sửa mật khẩu hoặc xóa tài khoản</p>
+              <p class="text-xs text-slate-500">Super Admin có toàn quyền tạo mới, phân quyền site, sửa mật khẩu hoặc xuất file Excel tài khoản</p>
             </div>
             <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
           </div>
@@ -1572,36 +1630,115 @@
             </div>
           </div>
 
+          <!-- DANH SÁCH TÀI KHOẢN KÈM TÌM KIẾM VÀ NÚT XUẤT EXCEL -->
           <div>
-            <h4 class="text-xs font-bold text-slate-700 uppercase mb-3">Danh Sách Tài Khoản Hệ Thống</h4>
-            <div class="space-y-2">
-              ${appData.users.map((u, idx) => `
-                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
-                  <div>
-                    <div class="font-bold text-slate-800">${u.name} <span class="font-normal text-slate-500 font-mono">(@${u.u})</span></div>
-                    <div class="text-[11px] text-slate-500">
-                      Vai trò: <strong class="text-sky-700">${u.role.toUpperCase()}</strong> | Mật khẩu: <span class="bg-slate-100 px-1 rounded font-mono font-bold">${u.p}</span>
-                    </div>
-                    <div class="text-[11px] text-slate-600 mt-0.5">
-                      Site quản lý: <strong>${u.role === 'superadmin' ? 'Tất cả các Site (*)' : (u.allowedSites ? u.allowedSites.join(', ') : (u.siteId || 'Trại cá nhân'))}</strong>
-                    </div>
-                  </div>
-                  <div class="flex items-center space-x-1.5">
-                    <button onclick="openManageUsersModal(${idx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
-                      <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
-                    </button>
-                    ${u.u !== 'admin' ? `
-                      <button onclick="deleteUser(${idx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
-                        <i class="fa-solid fa-trash mr-1"></i>Xóa
-                      </button>
-                    ` : '<span class="text-xs text-slate-400 font-semibold italic px-2">Gốc</span>'}
-                  </div>
-                </div>
-              `).join("")}
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div class="flex items-center space-x-2">
+                <h4 class="text-xs font-bold text-slate-700 uppercase">Danh Sách Tài Khoản (${appData.users.length})</h4>
+                <!-- NÚT XUẤT EXCEL TÀI KHOẢN -->
+                <button onclick="exportAccountsToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded text-[11px] shadow-sm transition flex items-center space-x-1">
+                  <i class="fa-solid fa-file-excel"></i>
+                  <span>Xuất File Excel</span>
+                </button>
+              </div>
+
+              <!-- Ô TÌM KIẾM TÀI KHOẢN -->
+              <div class="relative w-full sm:w-60">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400 text-xs">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="modal-user-search-input" value="${modalUserSearchKeyword}" oninput="handleModalUserSearch(this.value)" placeholder="Tìm username, tên, vai trò..." class="w-full text-xs pl-8 pr-7 py-1.5 border border-slate-300 rounded-lg outline-none focus:ring-1 focus:ring-rose-500">
+                ${modalUserSearchKeyword ? `
+                  <button onclick="clearModalUserSearch()" class="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400 hover:text-slate-600 text-xs">&times;</button>
+                ` : ''}
+              </div>
             </div>
+
+            ${filteredUsersList.length === 0 ? `
+              <div class="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+                Không tìm thấy tài khoản nào khớp với từ khóa "${modalUserSearchKeyword}"
+              </div>
+            ` : `
+              <div class="space-y-2">
+                ${filteredUsersList.map(u => `
+                  <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs">
+                    <div>
+                      <div class="font-bold text-slate-800">${u.name} <span class="font-normal text-slate-500 font-mono">(@${u.u})</span></div>
+                      <div class="text-[11px] text-slate-500">
+                        Vai trò: <strong class="text-sky-700">${u.role.toUpperCase()}</strong> | Mật khẩu: <span class="bg-slate-100 px-1 rounded font-mono font-bold">${u.p}</span>
+                      </div>
+                      <div class="text-[11px] text-slate-600 mt-0.5">
+                        Site quản lý: <strong>${u.role === 'superadmin' ? 'Tất cả các Site (*)' : (u.allowedSites ? u.allowedSites.join(', ') : (u.siteId || 'Trại cá nhân'))}</strong>
+                      </div>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                      <button onclick="openManageUsersModal(${u.originalIdx})" class="text-sky-600 hover:bg-sky-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-sky-200">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i>Sửa
+                      </button>
+                      ${u.u !== 'admin' ? `
+                        <button onclick="deleteUser(${u.originalIdx})" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded transition text-xs font-semibold border border-rose-200">
+                          <i class="fa-solid fa-trash mr-1"></i>Xóa
+                        </button>
+                      ` : '<span class="text-xs text-slate-400 font-semibold italic px-2">Gốc</span>'}
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            `}
           </div>
         </div>
       `;
+    }
+
+    function handleModalUserSearch(val) {
+      modalUserSearchKeyword = val;
+      openManageUsersModal();
+      const input = document.getElementById("modal-user-search-input");
+      if (input) {
+        input.focus();
+        input.setSelectionRange(val.length, val.length);
+      }
+    }
+
+    function clearModalUserSearch() {
+      modalUserSearchKeyword = "";
+      openManageUsersModal();
+    }
+
+    // TÍNH NĂNG XUẤT TOÀN BỘ TÀI KHOẢN RA FILE EXCEL (CSV UTF-8)
+    function exportAccountsToExcel() {
+      if (!appData.users || !appData.users.length) {
+        return alert("Không có dữ liệu tài khoản để xuất file!");
+      }
+
+      let csv = "STT,Tên Hiển Thị,Tên Đăng Nhập (Username),Mật Khẩu (Password),Vai Trò Hệ Thống,Phạm Vi Quản Lý / Phụ Trách\r\n";
+
+      appData.users.forEach((u, idx) => {
+        const stt = idx + 1;
+        const name = `"${(u.name || '').replace(/"/g, '""')}"`;
+        const username = `"${(u.u || '').replace(/"/g, '""')}"`;
+        const password = `"${(u.p || '').replace(/"/g, '""')}"`;
+        const role = `"${(u.role || '').toUpperCase()}"`;
+        const scope = `"${(u.role === 'superadmin' ? 'Toàn bộ các Site (*)' : (u.allowedSites ? u.allowedSites.join(', ') : (u.siteId || 'Trại cá nhân'))).replace(/"/g, '""')}"`;
+
+        csv += `${stt},${name},${username},${password},${role},${scope}\r\n`;
+      });
+
+      // Tạo Blob có BOM UTF-8 (\ufeff) để Excel mở tiếng Việt không bị lỗi font
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Danh_Sach_Tai_Khoan_Ventech_${selectedDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Đã xuất file Excel danh sách tài khoản thành công!");
+    }
+
+    function toggleSiteCheckboxes(roleVal) {
+      const container = document.getElementById("site-checkboxes-container");
+      if (roleVal === "superadmin") container.style.display = "none";
+      else container.style.display = "grid";
     }
 
     function handleSaveUser(editIdx) {
@@ -1636,7 +1773,7 @@
 
         if (currentUser && currentUser.u.toLowerCase() === target.u.toLowerCase()) {
           currentUser = { ...target };
-          localStorage.setItem("ventech_user", JSON.stringify(currentUser));
+          sessionStorage.setItem("ventech_user", JSON.stringify(currentUser));
         }
 
         saveAllData(false);
